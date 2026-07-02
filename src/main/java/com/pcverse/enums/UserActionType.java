@@ -1,0 +1,19 @@
+package com.pcverse.enums;
+
+public enum UserActionType {
+    REGISTER,
+    LOGIN,
+    LOGIN_FAILED,
+    LOGOUT,
+    CHANGE_PASSWORD,
+    RESET_PASSWORD,
+    UPDATE_PROFILE,
+    CREATE_ADDRESS,
+    UPDATE_ADDRESS,
+    DELETE_ADDRESS,
+    ASSIGN_ROLE,
+    REMOVE_ROLE,
+    LOCK_USER,
+    DISABLE_USER,
+    ENABLE_USER
+}
