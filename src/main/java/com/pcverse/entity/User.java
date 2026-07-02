@@ -11,12 +11,12 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class User {
+public class User extends AbstractAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,7 +55,5 @@ public class User {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
-
-
 
 }

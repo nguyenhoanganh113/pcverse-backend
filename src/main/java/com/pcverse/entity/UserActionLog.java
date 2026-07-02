@@ -66,13 +66,13 @@ public class UserActionLog {
     @Column(name = "user_agent", columnDefinition = "TEXT")
     private String userAgent;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    @Column(name = "occurred_at", nullable = false, updatable = false)
+    private Instant occurredAt;
 
     @PrePersist
     void prePersist() {
-        if (createdAt == null) {
-            createdAt = Instant.now();
+        if (occurredAt == null) {
+            occurredAt = Instant.now();
         }
     }
 }
