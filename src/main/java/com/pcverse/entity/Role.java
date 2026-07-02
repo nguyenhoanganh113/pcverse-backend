@@ -8,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "roles")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -16,6 +17,7 @@ public class Role extends AbstractAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
