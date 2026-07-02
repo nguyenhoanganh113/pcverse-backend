@@ -1,21 +1,19 @@
 package com.pcverse.entity;
 
-import com.pcverse.enums.RoleName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "roles")
+@Table(name = "permissions")
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-public class Role extends AbstractAuditingEntity {
+public class Permission extends AbstractAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,15 +21,11 @@ public class Role extends AbstractAuditingEntity {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    @Enumerated(EnumType.STRING)
-    private RoleName roleName;
+    private String name;
 
-    private String description;
-
-    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserHasRole> userHasRoles;
-
-    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    @OneToMany(mappedBy = "permission", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
     private Set<RoleHasPermission> rolePermissions = new HashSet<>();
 
 }
