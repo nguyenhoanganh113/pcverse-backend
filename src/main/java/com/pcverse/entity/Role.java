@@ -1,7 +1,7 @@
 package com.pcverse.entity;
 
-import com.pcverse.enums.RoleName;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.util.HashSet;
@@ -23,15 +23,14 @@ public class Role extends AbstractAuditingEntity {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    @Enumerated(EnumType.STRING)
-    private RoleName roleName;
+    private String roleName;
 
     private String description;
 
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserHasRole> userHasRoles;
+    private Set<UserHasRole> userHasRoles = new HashSet<>();
 
-    @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "permission", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<RoleHasPermission> rolePermissions = new HashSet<>();
 
 }
