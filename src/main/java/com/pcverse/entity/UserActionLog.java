@@ -28,7 +28,7 @@ import java.time.Instant;
         indexes = {
                 @Index(name = "idx_user_action_logs_user_id", columnList = "user_id"),
                 @Index(name = "idx_user_action_logs_action_type", columnList = "action_type"),
-                @Index(name = "idx_user_action_logs_created_at", columnList = "created_at")
+                @Index(name = "idx_user_action_logs_occurred_at", columnList = "occurred_at")
         }
 )
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
