@@ -1,7 +1,7 @@
 package com.pcverse.entity;
 
-import com.pcverse.enums.RoleName;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.util.HashSet;
@@ -22,9 +22,9 @@ public class Role extends AbstractAuditingEntity {
     @EqualsAndHashCode.Include
     private Long id;
 
+    @NotBlank(message = "Role name must not be blank")
     @Column(nullable = false, unique = true)
-    @Enumerated(EnumType.STRING)
-    private RoleName roleName;
+    private String roleName;
 
     private String description;
 
