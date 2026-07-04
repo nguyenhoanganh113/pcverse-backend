@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:16-alpine'
     environment:
       - 'POSTGRES_DB=pc_verse'
       - 'POSTGRES_PASSWORD=123456'
