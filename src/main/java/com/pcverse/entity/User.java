@@ -7,9 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -32,7 +30,7 @@ public class User extends AbstractAuditingEntity {
 
     @Column(nullable = false)
     @JsonIgnore
-    private String passwordHash;
+    private String password;
 
     @Column(nullable = false)
     private String firstName;
@@ -55,12 +53,22 @@ public class User extends AbstractAuditingEntity {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Address> addresses = new ArrayList<>();
+    private Set<Address> addresses = new HashSet<>();
 
     private LocalDate dateOfBirth;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
+
+    // Method để thêm role cho user
+    public void addRole(Role role) {
+        this.userHasRoles.add(
+                UserHasRole.builder()
+                        .user(this)
+                        .role(role)
+                        .build()
+        );
+    }
 
 }

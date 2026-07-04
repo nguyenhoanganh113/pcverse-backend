@@ -13,6 +13,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+@Builder
 public class UserHasRole extends AbstractAuditingEntity {
 
     @Id
