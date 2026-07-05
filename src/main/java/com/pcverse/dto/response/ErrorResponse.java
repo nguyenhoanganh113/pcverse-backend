@@ -11,9 +11,9 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 @JsonInclude(NON_NULL)
 public record ErrorResponse(
         long timestamp,
-        int status,
-        String error,
-        int code,
+        int status, // HTTP status code
+        String errorCode, // mã lỗi nghiệp vụ của dự án
+        String error, // tên của http status code
         String message,
         String path,
         List<FieldErrorResponse> details
