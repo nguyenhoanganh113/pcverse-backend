@@ -4,6 +4,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
+import com.pcverse.enums.UserStatus;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
 import com.pcverse.mapper.UserMapper;
@@ -34,6 +35,7 @@ public class UserServiceImpl implements UserService {
 
         // 2. Mã hoá password
         user.setPassword(passwordEncoder.encode(request.password()));
+        user.setUserStatus(UserStatus.ACTIVE);
 
         // 3. Tạo hoặc lấy role CUSTOMER
         Role role = roleService.createRole("CUSTOMER");
