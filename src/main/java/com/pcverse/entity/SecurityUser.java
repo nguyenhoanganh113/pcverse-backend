@@ -1,7 +1,6 @@
 package com.pcverse.entity;
 
 import com.pcverse.enums.UserStatus;
-import lombok.AllArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
