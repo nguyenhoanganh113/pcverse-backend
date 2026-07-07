@@ -1,8 +1,8 @@
 package com.pcverse.dto.request;
 
 import com.pcverse.enums.Gender;
+import com.pcverse.validation.annotation.EnumPattern;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.hibernate.validator.constraints.Length;
 
 public record CreateUserRequest(
@@ -23,8 +23,22 @@ public record CreateUserRequest(
         @NotBlank(message = "Phone number is required")
         String phoneNumber,
 
-        @NotNull(message = "Gender is required")
-        Gender gender
+        @NotBlank(message = "Gender is required")
+        @EnumPattern(fieldName = "gender", enumClass = Gender.class)
+        String gender
 
 ) {
+
+        public CreateUserRequest {
+                email = trim(email);
+                firstName = trim(firstName);
+                lastName = trim(lastName);
+                phoneNumber = trim(phoneNumber);
+                gender = trim(gender);
+        }
+
+        private static String trim(String value) {
+                return value == null ? null : value.trim();
+        }
+
 }

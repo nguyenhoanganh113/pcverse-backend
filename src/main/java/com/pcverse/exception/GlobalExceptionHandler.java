@@ -4,13 +4,19 @@ import com.pcverse.dto.response.ErrorResponse;
 import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
 
 @RestControllerAdvice
 @Slf4j
@@ -49,6 +55,52 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getHttpStatus()).body(response);
 
+    }
+
+    @ExceptionHandler(value = HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e, WebRequest request) {
+
+        FieldErrorResponse detail = buildHttpMessageNotReadableDetail(e);
+        ErrorResponse response = buildErrorCodeResponse(ErrorCode.VALIDATION_ERROR, request, List.of(detail));
+
+        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getHttpStatus()).body(response);
+    }
+
+    private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {
+        Throwable cause = e.getCause();
+
+        if (cause instanceof InvalidFormatException invalidFormatException
+                && invalidFormatException.getTargetType() != null
+                && invalidFormatException.getTargetType().isEnum()) {
+            String field = extractFieldName(invalidFormatException);
+            String acceptedValues = extractAcceptedEnumValues(invalidFormatException.getTargetType());
+            String rejectedValue = Objects.toString(invalidFormatException.getValue(), "null");
+
+            return new FieldErrorResponse(
+                    field,
+                    "Invalid value '" + rejectedValue + "' for field '" + field
+                            + "'. Accepted values: " + acceptedValues
+            );
+        }
+
+        return new FieldErrorResponse("requestBody", "Invalid request body or JSON format");
+    }
+
+    private String extractFieldName(JacksonException exception) {
+        String field = exception.getPath()
+                .stream()
+                .map(JacksonException.Reference::getPropertyName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("."));
+
+        return field.isBlank() ? "requestBody" : field;
+    }
+
+    private String extractAcceptedEnumValues(Class<?> enumClass) {
+        return Arrays.stream(enumClass.getEnumConstants())
+                .map(enumValue -> ((Enum<?>) enumValue).name())
+                .collect(Collectors.joining(", "));
     }
 
     private ErrorResponse buildErrorCodeResponse(
