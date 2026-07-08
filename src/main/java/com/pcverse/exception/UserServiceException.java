@@ -12,6 +12,4 @@ public class UserServiceException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
-
-
 }
