@@ -26,13 +26,12 @@ public class JwtServiceImpl implements JwtService {
     public String generateAccessToken(String userId, Set<String> roles) {
 
         // Header
-        JWSHeader jwsHeader = new JWSHeader(JWSAlgorithm.HS512);
+        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
+        // Payload
         Instant issuedAt = Instant.now(); // Thời điểm token được phát hành
         Instant expiredAt = issuedAt.plus(15, ChronoUnit.MINUTES);
         String jwtId = UUID.randomUUID().toString();
-
-        // Payload
 
         // Tạo payload cho JWT: token thuộc user nào, phát hành lúc nào,
         // hết hạn khi nào, và mang các quyền/role nào.
@@ -49,7 +48,7 @@ public class JwtServiceImpl implements JwtService {
         Payload payload = new Payload(claimsSet.toJSONObject());
 
         // Signature
-        JWSObject jwsObject = new JWSObject(jwsHeader, payload);
+        JWSObject jwsObject = new JWSObject(header, payload);
         try {
             jwsObject.sign(new MACSigner(secretKey));
         } catch (JOSEException e) {
@@ -61,6 +60,34 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String generateRefreshToken(String userId) {
-        return "";
+
+         // Header
+         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+
+         // Payload
+         Instant issuedAt = Instant.now();
+         Instant expiredAt = issuedAt.plus(7, ChronoUnit.DAYS);
+         String jwtId = UUID.randomUUID().toString();
+
+         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                 .subject(userId)
+                 .issuer(JWT_ISSUER)
+                 .issueTime(Date.from(issuedAt))
+                 .expirationTime(Date.from(expiredAt))
+                 .claim(TOKEN_TYPE, TokenType.REFRESH_TOKEN)
+                 .jwtID(jwtId)
+                 .build();
+
+         Payload payload = new Payload(claimsSet.toJSONObject());
+
+         // Signature
+         JWSObject jwsObject = new JWSObject(header, payload);
+        try {
+            jwsObject.sign(new MACSigner(secretKey));
+        } catch (JOSEException e) {
+            throw new UserServiceException(ErrorCode.TOKEN_GENERATION_FAILED);
+        }
+        return jwsObject.serialize();
+
     }
 }
