@@ -2,6 +2,7 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.enums.UserStatus;
@@ -53,6 +54,15 @@ public class UserServiceImpl implements UserService {
 
         // 6. Convert Entity sang Response DTO
         return userMapper.toCreateUserResponse(user);
+    }
+
+    @Override
+    public UserDetailsResponse myInfo(String userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+
+        return userMapper.toUserDetailResponse(user);
     }
 
 }

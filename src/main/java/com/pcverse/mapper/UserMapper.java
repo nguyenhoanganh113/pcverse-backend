@@ -2,6 +2,7 @@ package com.pcverse.mapper;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.entity.User;
 import com.pcverse.enums.Gender;
 import org.mapstruct.Mapper;
@@ -18,6 +19,8 @@ public interface UserMapper {
     User toUser(CreateUserRequest createUserRequest);
 
     CreateUserResponse toCreateUserResponse(User user);
+
+    UserDetailsResponse toUserDetailResponse(User user);
 
     default Gender toGender(String value) {
         if (value == null || value.isBlank()) {
