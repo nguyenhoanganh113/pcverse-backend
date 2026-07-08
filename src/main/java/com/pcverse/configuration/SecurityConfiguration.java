@@ -8,7 +8,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,6 +26,7 @@ public class SecurityConfiguration {
     };
 
     private final DatabaseUserDetailsService userDetailService;
+    private final CustomJwtDecoder jwtDecoder;
 
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -40,6 +40,8 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                                 .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
                                 .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder)))
                 .build();
     }
 
