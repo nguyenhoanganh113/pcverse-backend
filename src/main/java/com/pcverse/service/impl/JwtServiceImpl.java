@@ -8,6 +8,7 @@ import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
 import com.pcverse.service.JwtService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import static com.pcverse.constant.AppConstant.*;
 
+@Service
 public class JwtServiceImpl implements JwtService {
 
     @Value("${jwt.secret-key}")
