@@ -9,10 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -46,6 +43,25 @@ public class AuthenticationController {
                 .message("Login successful")
                 .data(responseData)
                 .build();
+    }
+
+    @PostMapping("/refresh-token")
+    ApiResponse<LoginResponse> refreshToken(@CookieValue("refresh-token") String refreshToken) {
+
+        var data = authenticationService.refreshToken(refreshToken);
+
+        LoginResponse responseData = LoginResponse.builder()
+                .accessToken(data.accessToken())
+                .refreshToken(null)
+                .roles(data.roles())
+                .build();
+
+        return ApiResponse.<LoginResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Refresh token successful")
+                .data(responseData)
+                .build();
+
     }
 
 }
