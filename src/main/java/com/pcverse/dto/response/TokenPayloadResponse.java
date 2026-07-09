@@ -8,7 +8,8 @@ import java.util.Set;
 public record TokenPayloadResponse(
 
         Boolean isValid,
-        String id,
+        String userId,
+        String jwtId,
         Set<String> authorities
 
 ) {

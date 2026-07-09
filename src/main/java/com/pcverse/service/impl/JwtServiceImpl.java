@@ -5,6 +5,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.pcverse.dto.TokenDetails;
 import com.pcverse.dto.response.TokenPayloadResponse;
 import com.pcverse.enums.TokenType;
 import com.pcverse.exception.ErrorCode;
@@ -65,35 +66,42 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public String generateRefreshToken(String userId) {
+    public TokenDetails generateRefreshToken(String userId) {
 
-         // Header
-         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+        // Header
+        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
-         // Payload
-         Instant issuedAt = Instant.now();
-         Instant expiredAt = issuedAt.plus(7, ChronoUnit.DAYS);
-         String jwtId = UUID.randomUUID().toString();
+        // Payload
+        Instant issuedAt = Instant.now();
+        Instant expiredAt = issuedAt.plus(7, ChronoUnit.DAYS);
+        long ttlSeconds = ChronoUnit.SECONDS.between(Instant.now(), expiredAt);
+        String jwtId = UUID.randomUUID().toString();
 
-         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                 .subject(userId)
-                 .issuer(JWT_ISSUER)
-                 .issueTime(Date.from(issuedAt))
-                 .expirationTime(Date.from(expiredAt))
-                 .claim(TOKEN_TYPE, TokenType.REFRESH_TOKEN)
-                 .jwtID(jwtId)
-                 .build();
+        JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                .subject(userId)
+                .issuer(JWT_ISSUER)
+                .issueTime(Date.from(issuedAt))
+                .expirationTime(Date.from(expiredAt))
+                .claim(TOKEN_TYPE, TokenType.REFRESH_TOKEN)
+                .jwtID(jwtId)
+                .build();
 
-         Payload payload = new Payload(claimsSet.toJSONObject());
+        Payload payload = new Payload(claimsSet.toJSONObject());
 
-         // Signature
-         JWSObject jwsObject = new JWSObject(header, payload);
+        // Signature
+        JWSObject jwsObject = new JWSObject(header, payload);
         try {
             jwsObject.sign(new MACSigner(secretKey));
         } catch (JOSEException e) {
             throw new UserServiceException(ErrorCode.TOKEN_GENERATION_FAILED);
         }
-        return jwsObject.serialize();
+        String token = jwsObject.serialize();
+
+        return TokenDetails.builder()
+                .value(token)        // Token string
+                .jwtId(jwtId)        // UUID để lưu vào Redis
+                .ttlSeconds(ttlSeconds) // TTL để set expiration trong Redis
+                .build();
 
     }
 
@@ -137,10 +145,12 @@ public class JwtServiceImpl implements JwtService {
         }
 
         String userId = claims.getSubject();
+        String jwtId = claims.getJWTID();
 
         return TokenPayloadResponse.builder()
                 .isValid(true)
-                .id(userId)
+                .userId(userId)
+                .jwtId(jwtId)
                 .build();
 
     }

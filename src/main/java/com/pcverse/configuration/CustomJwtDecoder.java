@@ -1,6 +1,7 @@
 package com.pcverse.configuration;
 
-import com.pcverse.repository.TokenRepository;
+import com.nimbusds.jwt.SignedJWT;
+import com.pcverse.service.RedisTokenService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 
 @Component
 @Slf4j
@@ -24,7 +26,10 @@ public class CustomJwtDecoder implements JwtDecoder {
 
     private NimbusJwtDecoder nimbusJwtDecoder;
 
-    private final TokenRepository tokenRepository;
+    // Inject RedisTokenService để check blacklist
+    private final RedisTokenService redisTokenService;
+
+    // private final TokenRepository tokenRepository;
 
     @PostConstruct
     public void init() {
@@ -42,16 +47,13 @@ public class CustomJwtDecoder implements JwtDecoder {
     public Jwt decode(@NonNull String token) throws JwtException {
 
         Jwt jwt = nimbusJwtDecoder.decode(token);
-
         String jwtId = jwt.getId();
         if (jwtId == null) {
             throw new JwtException("JWT ID is missing");
         }
-
-        if (tokenRepository.existsById(jwtId)) {
+        if (redisTokenService.existsByJwtId(jwtId)) {
             throw new JwtException("Token has been revoked");
         }
-
         return jwt;
     }
 }
