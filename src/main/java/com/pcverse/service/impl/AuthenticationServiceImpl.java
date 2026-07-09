@@ -93,7 +93,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional(readOnly = true)
     public ExchangeTokenResponse refreshToken(String refreshToken) {
         try {
+
+            // Việc verify này chỉ đảm bảo đúng signature, đúng format, chưa hết hạn, đúng TokenType
+            // Không đồng nghĩa với việc refreshToken này còn được server chấp nhận
             TokenPayloadResponse payload = jwtService.verifyRefreshToken(refreshToken);
+
+            // kiểm tra xem trong redisTokenRepository còn có refreshToken này hay không?
+            // Nếu không còn thì tức là user đã logout và refreshToken này đã bị xoá
+            String refreshJwtId = payload.jwtId();
+            if (refreshJwtId == null || !redisTokenService.existsByJwtId(refreshJwtId)) {
+                throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            }
+
             String userId = payload.userId();
 
             User user = userRepository.findWithAuthoritiesById(userId)
