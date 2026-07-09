@@ -145,10 +145,12 @@ public class JwtServiceImpl implements JwtService {
         }
 
         String userId = claims.getSubject();
+        String jwtId = claims.getJWTID();
 
         return TokenPayloadResponse.builder()
                 .isValid(true)
-                .id(userId)
+                .userId(userId)
+                .jwtId(jwtId)
                 .build();
 
     }

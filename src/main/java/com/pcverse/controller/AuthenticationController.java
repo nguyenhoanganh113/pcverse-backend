@@ -65,4 +65,28 @@ public class AuthenticationController {
 
     }
 
+    @PostMapping("/logout")
+    ApiResponse<Void> logout(
+            @CookieValue("refresh-token") String refreshToken,
+            HttpServletResponse response
+    ) {
+        // 1. Gọi service để thu hồi tokens
+        authenticationService.logout(refreshToken);
+
+        // 2. Xóa refresh token cookie
+        // Set value = "" và maxAge = 0 để browser xóa cookie
+        Cookie cookie = new Cookie("refresh-token", "");
+        cookie.setPath("/");
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false);
+        cookie.setMaxAge(0); // Xóa cookie ngay lập tức
+
+        response.addCookie(cookie);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("Logout successful")
+                .build();
+    }
+
 }
