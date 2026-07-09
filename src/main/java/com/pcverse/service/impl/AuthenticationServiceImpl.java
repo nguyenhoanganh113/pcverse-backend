@@ -17,6 +17,7 @@ import com.pcverse.service.AuthenticationService;
 import com.pcverse.service.JwtService;
 import com.pcverse.service.RedisTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
@@ -138,17 +140,24 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             // 4. Validate refresh token và lấy thông tin trong payload
             TokenPayloadResponse refreshPayload = jwtService.verifyRefreshToken(refreshToken);
 
+            String refreshUserId = refreshPayload.userId();
+            String refreshJwtId = refreshPayload.jwtId();
+
+            // Kiểm tra tính vẹn toàn của Payload
+            if (refreshJwtId == null) {
+                throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            }
+
             // 5. Verify userId từ access token và refresh token phải giống nhau
             // Tránh trường hợp user A dùng access token của mình + refresh token của user B
-            String refreshUserId = refreshPayload.userId();
             if (!Objects.equals(userId, refreshUserId)) {
+                log.warn("Logout attempt with mismatched userId: accessTokenUserId={}, refreshTokenUserId={}", userId, refreshUserId);
                 throw new UserServiceException(ErrorCode.TOKEN_INVALID);
             }
 
             // 6. Xóa refresh token khỏi Redis
             // Refresh token đã được lưu vào Redis khi login
-            String refreshJwtId = refreshPayload.jwtId();
-            if (refreshJwtId == null || !redisTokenService.existsByJwtId(refreshJwtId)) {
+            if (!redisTokenService.existsByJwtId(refreshJwtId)) {
                 throw new UserServiceException(ErrorCode.TOKEN_INVALID);
             }
             redisTokenService.deleteTokenByJwtId(refreshJwtId);
