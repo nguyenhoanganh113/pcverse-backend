@@ -1,18 +1,22 @@
 package com.pcverse.service.impl;
 
 import com.nimbusds.jose.JOSEException;
+import com.pcverse.dto.TokenDetails;
 import com.pcverse.dto.request.LoginRequest;
 import com.pcverse.dto.response.ExchangeTokenResponse;
 import com.pcverse.dto.response.LoginResponse;
 import com.pcverse.dto.response.TokenPayloadResponse;
+import com.pcverse.entity.RedisToken;
 import com.pcverse.entity.SecurityUser;
 import com.pcverse.entity.User;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
+import com.pcverse.repository.RedisTokenRepository;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.AuthenticationService;
 import com.pcverse.service.JwtService;
+import com.pcverse.service.RedisTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,29 +37,48 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final RedisTokenService redisTokenService;
 
     @Override
     public LoginResponse login(LoginRequest request) {
+
+        // 1. Xác thực user
         Authentication authenticationToken =
                 new UsernamePasswordAuthenticationToken(request.email(), request.password());
 
         Authentication authenticate = authenticationManager.authenticate(authenticationToken);
 
+        // 2. Lấy thông tin user
         Object principal = authenticate.getPrincipal();
         if (!(principal instanceof SecurityUser securityUser)) {
             throw new UserServiceException(ErrorCode.UNAUTHORIZED);
         }
 
+        // 3. Extract roles
         User user = securityUser.getUser();
         Set<String> roles = extractAuthorities(securityUser);
 
         // Generate access token và refresh token dựa trên userId và authorities
+        // 4. Generate access token (String)
         String accessToken = jwtService.generateAccessToken(user.getId(), roles);
-        String refreshToken = jwtService.generateRefreshToken(user.getId());
 
+        // 5. Generate refresh token (TokenDetails)
+        TokenDetails tokenDetails = jwtService.generateRefreshToken(user.getId());
+
+        // 6. Lưu refresh token vào Redis
+        RedisToken redisToken = RedisToken.builder()
+                .jwtId(tokenDetails.jwtId())      // UUID của token
+                .userId(user.getId())              // User ID để query sau này
+                .expiration(tokenDetails.ttlSeconds()) // TTL = 7 ngày
+                .build();
+
+        redisTokenService.saveToken(redisToken);
+
+        // 7. Return response
+        // Chỉ return token string (value), không return jwtId và ttl
         return LoginResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(tokenDetails.value())
                 .roles(roles)
                 .build();
 

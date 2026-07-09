@@ -41,11 +41,15 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pc_verse}
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      REDIS_HOST: ${REDzIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
     ports:
       - "${APP_PORT}:${SERVER_PORT}"
+    networks:
+      - app_network
 
 volumes:
   postgres_data:
