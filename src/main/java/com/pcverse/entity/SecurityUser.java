@@ -1,6 +1,8 @@
 package com.pcverse.entity;
 
 import com.pcverse.enums.UserStatus;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -10,7 +12,11 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public record SecurityUser(User user) implements UserDetails {
+@AllArgsConstructor
+@Getter
+public class SecurityUser implements UserDetails {
+
+    private final User user;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

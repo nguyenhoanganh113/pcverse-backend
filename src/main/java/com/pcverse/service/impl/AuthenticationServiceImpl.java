@@ -43,7 +43,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         SecurityUser securityUser = (SecurityUser) authenticate.getPrincipal();
 
-        User user = securityUser.user();
+        User user = securityUser.getUser();
 
         Set<String> roles = extractAuthorities(securityUser);
 
@@ -82,7 +82,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .refreshToken(refreshToken)
                     .roles(roles)
                     .build();
-
 
         } catch (ParseException | JOSEException e) {
             throw new UserServiceException(ErrorCode.TOKEN_INVALID);
