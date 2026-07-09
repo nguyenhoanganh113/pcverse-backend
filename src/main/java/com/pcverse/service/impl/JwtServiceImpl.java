@@ -2,7 +2,10 @@ package com.pcverse.service.impl;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import com.pcverse.dto.response.TokenPayloadResponse;
 import com.pcverse.enums.TokenType;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
@@ -10,6 +13,7 @@ import com.pcverse.service.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -90,6 +94,54 @@ public class JwtServiceImpl implements JwtService {
             throw new UserServiceException(ErrorCode.TOKEN_GENERATION_FAILED);
         }
         return jwsObject.serialize();
+
+    }
+
+    @Override
+    public TokenPayloadResponse verifyRefreshToken(String refreshToken) throws ParseException, JOSEException {
+
+        /*
+         * chuyển JWT string thành SignedJWT object
+         * kiểm tra format JWT
+         * sai format thì throw ParseException
+         * chưa verify chữ ký
+         * chưa kiểm tra hết hạn
+         */
+        SignedJWT signedJWT = SignedJWT.parse(refreshToken);
+
+        JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+
+        /*
+        Lấy thời gian hết hạn từ claim exp
+        So sánh với thời gian hiện tại
+        Nếu token đã hết hạn → throw exception
+         */
+        Date expirationTime = claims.getExpirationTime();
+        if (expirationTime == null || expirationTime.before(new Date())) {
+            throw new UserServiceException(ErrorCode.TOKEN_EXPIRED);
+        }
+
+        /*
+        Verify signature bằng secret key
+        MACVerifier: Verifier cho thuật toán HMAC (HS512)
+        Nếu signature không khớp → token bị giả mạo → throw exception
+         */
+        if (!signedJWT.verify(new MACVerifier(secretKey))) {
+            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+        }
+
+        // Kiểm tra loại token
+        String tokenType = claims.getStringClaim(TOKEN_TYPE);
+        if (!TokenType.REFRESH_TOKEN.name().equals(tokenType)) {
+            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+        }
+
+        String userId = claims.getSubject();
+
+        return TokenPayloadResponse.builder()
+                .isValid(true)
+                .id(userId)
+                .build();
 
     }
 }
