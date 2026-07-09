@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-    public class AuthenticationServiceImpl implements AuthenticationService {
+public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -86,6 +86,11 @@ import java.util.stream.Collectors;
         } catch (ParseException | JOSEException e) {
             throw new UserServiceException(ErrorCode.TOKEN_INVALID);
         }
+    }
+
+    @Override
+    public void logout(String accessToken, String refreshToken) {
+
     }
 
     private Set<String> extractAuthorities(SecurityUser securityUser) {
