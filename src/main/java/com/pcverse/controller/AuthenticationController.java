@@ -2,6 +2,7 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.LoginRequest;
 import com.pcverse.dto.response.ApiResponse;
+import com.pcverse.dto.response.ExchangeTokenResponse;
 import com.pcverse.dto.response.LoginResponse;
 import com.pcverse.service.AuthenticationService;
 import jakarta.servlet.http.Cookie;
@@ -48,7 +49,7 @@ public class AuthenticationController {
     @PostMapping("/refresh-token")
     ApiResponse<LoginResponse> refreshToken(@CookieValue("refresh-token") String refreshToken) {
 
-        var data = authenticationService.refreshToken(refreshToken);
+        ExchangeTokenResponse data = authenticationService.refreshToken(refreshToken);
 
         LoginResponse responseData = LoginResponse.builder()
                 .accessToken(data.accessToken())

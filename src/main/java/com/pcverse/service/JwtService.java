@@ -1,7 +1,7 @@
 package com.pcverse.service;
 
 import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jwt.SignedJWT;
+import com.pcverse.dto.response.TokenPayloadResponse;
 
 import java.text.ParseException;
 import java.util.Set;
@@ -12,6 +12,6 @@ public interface JwtService {
 
     String generateRefreshToken(String userId);
 
-    SignedJWT validateToken(String token) throws ParseException, JOSEException;
+    TokenPayloadResponse verifyRefreshToken(String refreshToken) throws ParseException, JOSEException;
 
 }
