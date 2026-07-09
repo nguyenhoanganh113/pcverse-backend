@@ -41,10 +41,12 @@ import java.util.stream.Collectors;
 
         Authentication authenticate = authenticationManager.authenticate(authenticationToken);
 
-        SecurityUser securityUser = (SecurityUser) authenticate.getPrincipal();
+        Object principal = authenticate.getPrincipal();
+        if (!(principal instanceof SecurityUser securityUser)) {
+            throw new UserServiceException(ErrorCode.UNAUTHORIZED);
+        }
 
         User user = securityUser.getUser();
-
         Set<String> roles = extractAuthorities(securityUser);
 
         // Generate access token và refresh token dựa trên userId và authorities
