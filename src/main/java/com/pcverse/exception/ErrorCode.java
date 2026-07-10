@@ -15,7 +15,8 @@ public enum ErrorCode {
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
     TOKEN_GENERATION_FAILED(500, "Token generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    UNAUTHORIZED(401, "Unauthorized", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(401, "Vui lòng đăng nhập để truy cập", HttpStatus.UNAUTHORIZED),
+    FORBIDDEN(403, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
     MISSING_LOGOUT_INFO(400, "Authorization header or refresh token is missing", HttpStatus.BAD_REQUEST);
 
     private final int code;

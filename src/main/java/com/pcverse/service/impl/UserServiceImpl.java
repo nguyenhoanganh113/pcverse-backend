@@ -69,7 +69,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')") cái này sẽ đi được vào service nên cần phải tạo 1 hàm để catch được
+    // khi throw AuthorizationDeniedException vì exception này thuộc service layer nên không xử lý ở nhánh này
     public List<UserDetailsResponse> getAllUsers() {
         return userRepository.findAll()
                 .stream()
