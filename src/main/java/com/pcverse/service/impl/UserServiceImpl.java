@@ -15,8 +15,11 @@ import com.pcverse.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +66,15 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
 
         return userMapper.toUserDetailResponse(user);
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserDetailsResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(userMapper::toUserDetailResponse)
+                .toList();
     }
 
 }
