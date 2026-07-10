@@ -33,6 +33,7 @@ public class SecurityConfiguration {
     private final DatabaseUserDetailsService userDetailService;
     private final CustomJwtDecoder jwtDecoder;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -43,6 +44,7 @@ public class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                // JWT không cần session mà gửi jwt mỗi request
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
@@ -52,7 +54,8 @@ public class SecurityConfiguration {
                         .jwt(jwtConfigurer -> jwtConfigurer
                                 .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                        .authenticationEntryPoint(authenticationEntryPoint))
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .build();
     }
 
