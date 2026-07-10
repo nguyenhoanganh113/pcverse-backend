@@ -49,6 +49,7 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                                 .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer
