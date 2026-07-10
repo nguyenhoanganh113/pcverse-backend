@@ -26,7 +26,11 @@ spring:
       port: ${REDIS_PORT:6379}
 
 jwt:
-  secret-key: ${JWT_SECRET_KEY}
+  access-token:
+    private-key: ${JWT_ACCESS_PRIVATE_KEY_BASE64}
+    public-key: ${JWT_ACCESS_PUBLIC_KEY_BASE64}
+  refresh-token:
+    secret-key: ${JWT_REFRESH_SECRET_KEY}
 
 server:
   port: ${SERVER_PORT:8085}

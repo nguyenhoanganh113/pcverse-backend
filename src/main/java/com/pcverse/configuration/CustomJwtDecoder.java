@@ -1,45 +1,33 @@
 package com.pcverse.configuration;
 
-import com.nimbusds.jwt.SignedJWT;
 import com.pcverse.service.RedisTokenService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class CustomJwtDecoder implements JwtDecoder {
 
-    @Value("${jwt.secret-key}")
-    private String secretKey;
-
     private NimbusJwtDecoder nimbusJwtDecoder;
 
     // Inject RedisTokenService để check blacklist
     private final RedisTokenService redisTokenService;
+    private final JwtKeyProvider jwtKeyProvider;
 
     // private final TokenRepository tokenRepository;
 
     @PostConstruct
     public void init() {
-        //Chuyển secret key từ String sang SecretKey object mà Java Crypto API hiểu được
-        SecretKey secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+        // Dùng public key để verify chữ ký access token được ký bằng private key RS256.
         nimbusJwtDecoder = NimbusJwtDecoder
-                .withSecretKey(secretKeySpec) //Tạo một NimbusJwtDecoder với cùng secretKey
-                //và cùng thuật toán HMAC mà bạn đã dùng khi ký token lúc login.
-                .macAlgorithm(MacAlgorithm.HS512) //Chỉ định đúng thuật toán
-                // — decoder từ chối token nếu dùng thuật toán khác
+                .withPublicKey(jwtKeyProvider.getAccessTokenPublicKey())
+                .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
     }
 

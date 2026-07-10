@@ -3,15 +3,16 @@ package com.pcverse.service.impl;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.pcverse.configuration.JwtKeyProvider;
 import com.pcverse.dto.TokenDetails;
 import com.pcverse.dto.response.TokenPayloadResponse;
 import com.pcverse.enums.TokenType;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
 import com.pcverse.service.JwtService;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -26,14 +27,17 @@ import static com.pcverse.constant.AppConstant.*;
 @Service
 public class JwtServiceImpl implements JwtService {
 
-    @Value("${jwt.secret-key}")
-    private String secretKey;
+    private final JwtKeyProvider jwtKeyProvider;
+
+    public JwtServiceImpl(JwtKeyProvider jwtKeyProvider) {
+        this.jwtKeyProvider = jwtKeyProvider;
+    }
 
     @Override
     public String generateAccessToken(String userId, Set<String> roles) {
 
         // Header
-        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+        JWSHeader header = new JWSHeader(JWSAlgorithm.RS256);
 
         // Payload
         Instant issuedAt = Instant.now(); // Thời điểm token được phát hành
@@ -57,7 +61,7 @@ public class JwtServiceImpl implements JwtService {
         // Signature
         JWSObject jwsObject = new JWSObject(header, payload);
         try {
-            jwsObject.sign(new MACSigner(secretKey));
+            jwsObject.sign(new RSASSASigner(jwtKeyProvider.getAccessTokenPrivateKey()));
         } catch (JOSEException e) {
             throw new UserServiceException(ErrorCode.TOKEN_GENERATION_FAILED);
         }
@@ -91,7 +95,7 @@ public class JwtServiceImpl implements JwtService {
         // Signature
         JWSObject jwsObject = new JWSObject(header, payload);
         try {
-            jwsObject.sign(new MACSigner(secretKey));
+            jwsObject.sign(new MACSigner(jwtKeyProvider.getRefreshTokenSecretKey()));
         } catch (JOSEException e) {
             throw new UserServiceException(ErrorCode.TOKEN_GENERATION_FAILED);
         }
@@ -134,7 +138,7 @@ public class JwtServiceImpl implements JwtService {
         MACVerifier: Verifier cho thuật toán HMAC (HS512)
         Nếu signature không khớp → token bị giả mạo → throw exception
          */
-        if (!signedJWT.verify(new MACVerifier(secretKey))) {
+        if (!signedJWT.verify(new MACVerifier(jwtKeyProvider.getRefreshTokenSecretKey()))) {
             throw new UserServiceException(ErrorCode.TOKEN_INVALID);
         }
 
