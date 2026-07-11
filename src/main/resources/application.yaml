@@ -25,12 +25,19 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  cloud:
+    azure:
+      keyvault:
+        secret:
+          property-sources:
+            - endpoint: ${AZURE_KEY_VAULT_ENDPOINT}
+
 jwt:
   access-token:
-    private-key: ${JWT_ACCESS_PRIVATE_KEY_BASE64}
-    public-key: ${JWT_ACCESS_PUBLIC_KEY_BASE64}
+    private-key: ${jwt-access-private-key-base64:${JWT_ACCESS_PRIVATE_KEY_BASE64}}
+    public-key: ${jwt-access-public-key-base64:${JWT_ACCESS_PUBLIC_KEY_BASE64}}
   refresh-token:
-    secret-key: ${JWT_REFRESH_SECRET_KEY}
+    secret-key: ${jwt-refresh-secret-key:${JWT_REFRESH_SECRET_KEY}}
 
 server:
   port: ${SERVER_PORT:8085}
