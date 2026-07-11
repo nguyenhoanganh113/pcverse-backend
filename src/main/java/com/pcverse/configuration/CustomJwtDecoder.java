@@ -37,10 +37,10 @@ public class CustomJwtDecoder implements JwtDecoder {
         Jwt jwt = nimbusJwtDecoder.decode(token);
         String jwtId = jwt.getId();
         if (jwtId == null) {
-            throw new JwtException("JWT ID is missing");
+            throw new BadJwtException("JWT ID is missing");
         }
         if (redisTokenService.existsByJwtId(jwtId)) {
-            throw new JwtException("Token has been revoked");
+            throw new BadJwtException("Token has been revoked");
         }
         return jwt;
     }
