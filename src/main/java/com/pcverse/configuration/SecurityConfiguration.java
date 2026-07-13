@@ -1,5 +1,6 @@
 package com.pcverse.configuration;
 
+import com.pcverse.security.converter.AuthoritiesConverter;
 import com.pcverse.service.DatabaseUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.*;
 
 @Configuration
 @RequiredArgsConstructor
@@ -31,7 +33,6 @@ public class SecurityConfiguration {
     };
 
     private final DatabaseUserDetailsService userDetailService;
-    private final CustomJwtDecoder jwtDecoder;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
@@ -41,7 +42,9 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 // JWT không cần session mà gửi jwt mỗi request
@@ -53,8 +56,7 @@ public class SecurityConfiguration {
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer
-                                .decoder(jwtDecoder)
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter))
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .build();
@@ -70,25 +72,16 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+    public JwtAuthenticationConverter jwtAuthenticationConverter(
+            AuthoritiesConverter authoritiesConverter) {
 
-        // 1.Tạo converter để extract authorities từ JWT
-        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-
-        // 2. Set claim name là "roles" (thay vì "scope" mặc định)
-        // Vì trong JwtService chúng ta dùng: .claim(ROLES, roles)
-        jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
-
-        // 3. Bỏ prefix (mặc định là "SCOPE_")
-        // Set empty string để dùng trực tiếp: "ADMIN", "CUSTOMER"
-        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
-
-        // 4. Tạo JwtAuthenticationConverter và set converter
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(
+                jwt -> authoritiesConverter.convert(jwt.getClaims())
+        );
 
         return jwtAuthenticationConverter;
-
     }
 
 }

@@ -32,12 +32,21 @@ spring:
           property-sources:
             - endpoint: ${AZURE_KEY_VAULT_ENDPOINT}
 
+  security:
+    oauth2:
+      resource-server:
+        jwt:
+          issuer-url: http://localhost:8090/realms/pc-verse-client
+
 jwt:
   access-token:
     private-key: ${jwt-access-private-key-base64:${JWT_ACCESS_PRIVATE_KEY_BASE64}}
     public-key: ${jwt-access-public-key-base64:${JWT_ACCESS_PUBLIC_KEY_BASE64}}
   refresh-token:
     secret-key: ${jwt-refresh-secret-key:${JWT_REFRESH_SECRET_KEY}}
+
+keycloak:
+  resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-api}
 
 server:
   port: ${SERVER_PORT:8085}
