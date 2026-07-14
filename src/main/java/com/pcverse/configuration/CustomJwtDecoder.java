@@ -2,33 +2,40 @@ package com.pcverse.configuration;
 
 import com.pcverse.service.RedisTokenService;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
-@RequiredArgsConstructor
 public class CustomJwtDecoder implements JwtDecoder {
 
     private NimbusJwtDecoder nimbusJwtDecoder;
 
     // Inject RedisTokenService để check blacklist
     private final RedisTokenService redisTokenService;
-    private final JwtKeyProvider jwtKeyProvider;
+    private final String issuerUri;
+    private final String jwkSetUri;
 
-    // private final TokenRepository tokenRepository;
+    public CustomJwtDecoder(
+            RedisTokenService redisTokenService,
+            @Value("${keycloak.issuer-uri}") String issuerUri,
+            @Value("${keycloak.jwk-set-uri}") String jwkSetUri) {
+        this.redisTokenService = redisTokenService;
+        this.issuerUri = issuerUri;
+        this.jwkSetUri = jwkSetUri;
+    }
 
     @PostConstruct
     public void init() {
-        // Dùng public key để verify chữ ký access token được ký bằng private key RS256.
+        // Chọn public key theo kid từ JWKS của Keycloak và cache key để verify token.
         nimbusJwtDecoder = NimbusJwtDecoder
-                .withPublicKey(jwtKeyProvider.getAccessTokenPublicKey())
-                .signatureAlgorithm(SignatureAlgorithm.RS256)
+                .withJwkSetUri(jwkSetUri)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
                 .build();
+        nimbusJwtDecoder.setJwtValidator(
+                JwtValidators.createDefaultWithIssuer(issuerUri));
     }
 
     @Override

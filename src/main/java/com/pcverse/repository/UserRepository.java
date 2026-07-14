@@ -12,6 +12,8 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByEmailIgnoreCase(String email);
+
     @EntityGraph(attributePaths = {
             "userHasRoles",
             "userHasRoles.role",
@@ -19,5 +21,7 @@ public interface UserRepository extends JpaRepository<User, String> {
             "userHasRoles.role.rolePermissions.permission"
     })
     Optional<User> findWithAuthoritiesById(String id);
+
+    Optional<User> findByKeycloakId(String keycloakId);
 
 }

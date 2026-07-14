@@ -88,22 +88,19 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      keycloak:
+        condition: service_started
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-pc_verse}
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
 
-      AZURE_KEY_VAULT_ENDPOINT: ${AZURE_KEY_VAULT_ENDPOINT}
-      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
-      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
-      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
-
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
 
-      JWT_ACCESS_PRIVATE_KEY_BASE64: ${JWT_ACCESS_PRIVATE_KEY_BASE64}
-      JWT_ACCESS_PUBLIC_KEY_BASE64: ${JWT_ACCESS_PUBLIC_KEY_BASE64}
-      JWT_REFRESH_SECRET_KEY: ${JWT_REFRESH_SECRET_KEY}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8090/realms/pcverse}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/pcverse/protocol/openid-connect/certs
+      KEYCLOAK_RESOURCE_CLIENT_ID: ${KEYCLOAK_RESOURCE_CLIENT_ID:-pc-verse-api}
 
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}

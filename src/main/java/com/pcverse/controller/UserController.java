@@ -34,8 +34,8 @@ public class UserController {
 
     @GetMapping("/me")
     ApiResponse<UserDetailsResponse> getMyInfo(@AuthenticationPrincipal Jwt jwt) {
-        var userId = jwt.getSubject();
-        var data = userService.myInfo(userId);
+        var user = userService.ensureUserExistsFromToken(jwt);
+        var data = userService.myInfo(user.getId());
         return ApiResponse.<UserDetailsResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("User info retrieved successfully")

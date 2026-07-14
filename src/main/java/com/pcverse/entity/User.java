@@ -25,6 +25,12 @@ public class User extends AbstractAuditingEntity {
     @EqualsAndHashCode.Include
     private String id;
 
+    @Column(name = "keycloak_id", unique = true, length = 36)
+    private String keycloakId;
+
+    @Column(unique = true)
+    private String username;
+
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -38,7 +44,6 @@ public class User extends AbstractAuditingEntity {
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false)
     private String phoneNumber;
 
     private String urlAvatar;

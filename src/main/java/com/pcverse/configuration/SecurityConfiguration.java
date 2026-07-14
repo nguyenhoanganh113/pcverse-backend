@@ -1,14 +1,10 @@
 package com.pcverse.configuration;
 
 import com.pcverse.security.converter.AuthoritiesConverter;
-import com.pcverse.service.DatabaseUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -28,11 +24,9 @@ import java.util.*;
 public class SecurityConfiguration {
 
     private static final String[] POST_PUBLICS = {
-            "/api/v1/users",
-            "/api/v1/auth/**"
+            "/api/v1/users"
     };
 
-    private final DatabaseUserDetailsService userDetailService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
@@ -60,15 +54,6 @@ public class SecurityConfiguration {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .build();
-    }
-
-    @Bean
-    AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailService);
-
-        provider.setPasswordEncoder(passwordEncoder());
-
-        return new ProviderManager(provider);
     }
 
     @Bean
