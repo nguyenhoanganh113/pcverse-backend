@@ -24,4 +24,6 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByKeycloakId(String keycloakId);
 
+    Boolean existsByUsernameIgnoreCase(String username);
+
 }

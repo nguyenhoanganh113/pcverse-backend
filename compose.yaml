@@ -18,7 +18,7 @@ services:
       - app_network
 
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: pc-verse-redis
     ports:
       - "6379:6379"
@@ -58,6 +58,8 @@ services:
   keycloak-db:
     image: 'postgres:16-alpine'
     container_name: pc-verse-keycloak-db
+    labels:
+      org.springframework.boot.ignore: true
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -73,6 +75,8 @@ services:
       POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
       POSTGRES_USER: ${KEYCLOAK_DB_USERNAME:-keycloak}
       POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak123}
+    ports:
+      - "5434:5432"
     networks:
       - app_network
 
@@ -95,8 +99,8 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-123456}
 
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
 
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8090/realms/pcverse}
       KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/pcverse/protocol/openid-connect/certs

@@ -34,7 +34,6 @@ public class User extends AbstractAuditingEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
     @JsonIgnore
     private String password;
 
@@ -44,6 +43,7 @@ public class User extends AbstractAuditingEntity {
     @Column(nullable = false)
     private String lastName;
 
+    @Column(nullable = false)
     private String phoneNumber;
 
     private String urlAvatar;
@@ -60,6 +60,7 @@ public class User extends AbstractAuditingEntity {
     @Builder.Default
     private Set<Address> addresses = new HashSet<>();
 
+    @Column(nullable = false)
     private LocalDate dateOfBirth;
 
     @Column(nullable = false)

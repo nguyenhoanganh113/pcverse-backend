@@ -12,7 +12,7 @@ public interface UserService {
 
     CreateUserResponse createUser(CreateUserRequest request);
 
-    UserDetailsResponse myInfo(String userId);
+    UserDetailsResponse myInfo(Jwt jwt);
 
     List<UserDetailsResponse> getAllUsers();
 
