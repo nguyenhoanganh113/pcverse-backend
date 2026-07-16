@@ -28,7 +28,7 @@ public class User extends AbstractAuditingEntity {
     @Column(name = "keycloak_id", unique = true, length = 36)
     private String keycloakId;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String username;
 
     @Column(nullable = false, unique = true)

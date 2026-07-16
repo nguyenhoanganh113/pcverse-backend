@@ -94,10 +94,7 @@ public class UserServiceImpl implements UserService {
         String email = requiredClaim(Objects.requireNonNull(jwt.getClaimAsString("email")).toLowerCase(Locale.ROOT));
 
         // Lấy "preferred_username" thuộc claims chính là username của User
-        String username = firstNonBlank(
-                jwt.getClaimAsString("preferred_username"),
-                usernameFromEmail(email)
-        ).toLowerCase(Locale.ROOT);
+        String username = requiredClaim(jwt.getClaimAsString("preferred_username"));
 
         // Nếu email chưa được verify
         if (!Boolean.TRUE.equals(jwt.getClaim("email_verified"))) {

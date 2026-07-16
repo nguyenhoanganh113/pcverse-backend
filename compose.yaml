@@ -50,6 +50,8 @@ services:
     depends_on:
       keycloak-db:
         condition: service_healthy
+    volumes:
+      - ./infrastructure/keycloak/themes:/opt/keycloak/themes:ro
     ports:
       - "${KEYCLOAK_PORT:-8090}:8180"
     networks:
