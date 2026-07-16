@@ -25,10 +25,15 @@ public class User extends AbstractAuditingEntity {
     @EqualsAndHashCode.Include
     private String id;
 
+    @Column(name = "keycloak_id", unique = true, length = 36)
+    private String keycloakId;
+
+    @Column(unique = true, nullable = false)
+    private String username;
+
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
     @JsonIgnore
     private String password;
 
@@ -55,6 +60,7 @@ public class User extends AbstractAuditingEntity {
     @Builder.Default
     private Set<Address> addresses = new HashSet<>();
 
+    @Column(nullable = false)
     private LocalDate dateOfBirth;
 
     @Column(nullable = false)

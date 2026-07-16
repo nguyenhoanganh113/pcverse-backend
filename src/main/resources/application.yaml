@@ -13,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto:
     show-sql: true
     properties:
       hibernate:
@@ -25,19 +25,10 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
-  cloud:
-    azure:
-      keyvault:
-        secret:
-          property-sources:
-            - endpoint: ${AZURE_KEY_VAULT_ENDPOINT}
-
-jwt:
-  access-token:
-    private-key: ${jwt-access-private-key-base64:${JWT_ACCESS_PRIVATE_KEY_BASE64}}
-    public-key: ${jwt-access-public-key-base64:${JWT_ACCESS_PUBLIC_KEY_BASE64}}
-  refresh-token:
-    secret-key: ${jwt-refresh-secret-key:${JWT_REFRESH_SECRET_KEY}}
+keycloak:
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/pcverse}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/pcverse/protocol/openid-connect/certs}
+  resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-api}
 
 server:
   port: ${SERVER_PORT:8085}
