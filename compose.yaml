@@ -104,9 +104,13 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
-      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8090/realms/pcverse}
-      KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/pcverse/protocol/openid-connect/certs
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8090/realms/pc-verse}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/pc-verse/protocol/openid-connect/certs
       KEYCLOAK_RESOURCE_CLIENT_ID: ${KEYCLOAK_RESOURCE_CLIENT_ID:-pc-verse-api}
+      KEYCLOAK_ADMIN_SERVER_URL: http://keycloak:8180
+      KEYCLOAK_ADMIN_REALM: pc-verse
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-pc-verse-admin}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
 
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
