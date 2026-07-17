@@ -15,7 +15,7 @@ public enum ErrorCode {
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
     TOKEN_GENERATION_FAILED(500, "Token generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
-    KEYCLOAK_ADMIN_API_ERROR(502, "Unable to synchronize user status with Keycloak", HttpStatus.BAD_GATEWAY),
+    KEYCLOAK_ADMIN_API_ERROR(502, "Unable to complete the user operation in Keycloak", HttpStatus.BAD_GATEWAY),
     KEYCLOAK_USER_NOT_LINKED(409, "User is not linked to a Keycloak account", HttpStatus.CONFLICT),
     USER_STATUS_NOT_SUPPORTED(400, "This user status cannot be synchronized with Keycloak", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(401, "Vui lòng đăng nhập để truy cập", HttpStatus.UNAUTHORIZED),

@@ -47,8 +47,12 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                                 .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users/admin").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.POST, "/api/v1/users/*/roles").hasRole("ADMIN")
                                 .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
                                 .requestMatchers(HttpMethod.PATCH, "/api/v1/users/*/status").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.PUT, "/api/v1/users/*/password").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.PUT, "/api/v1/users/*").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/users/*").hasRole("ADMIN")
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer

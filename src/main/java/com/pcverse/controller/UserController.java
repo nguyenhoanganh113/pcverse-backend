@@ -2,6 +2,9 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.CreateAdminUserRequest;
+import com.pcverse.dto.request.AssignUserRoleRequest;
+import com.pcverse.dto.request.ResetUserPasswordRequest;
+import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
@@ -24,6 +27,7 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CreateUserResponse> createUser(@RequestBody @Valid CreateUserRequest request) {
         var data = userService.createUser(request);
 
@@ -35,6 +39,7 @@ public class UserController {
     }
 
     @PostMapping("/admin")
+    @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<UserDetailsResponse> createAdminUser(@RequestBody @Valid CreateAdminUserRequest request) {
         UserDetailsResponse data = userService.createAdminUser(request);
 
@@ -78,6 +83,57 @@ public class UserController {
         return ApiResponse.<UserDetailsResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("User status updated successfully")
+                .data(data)
+                .build();
+    }
+
+    @PutMapping("/{userId}")
+    ApiResponse<UserDetailsResponse> updateUser(
+            @PathVariable String userId,
+            @RequestBody @Valid UpdateAdminUserRequest request
+    ) {
+        UserDetailsResponse data = userService.updateUser(userId, request);
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("User updated successfully")
+                .data(data)
+                .build();
+    }
+
+    @DeleteMapping("/{userId}")
+    ApiResponse<Void> deleteUser(@PathVariable String userId) {
+        userService.deleteUser(userId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User deleted successfully")
+                .build();
+    }
+
+    @PutMapping("/{userId}/password")
+    ApiResponse<Void> resetPassword(
+            @PathVariable String userId,
+            @RequestBody @Valid ResetUserPasswordRequest request
+    ) {
+        userService.resetPassword(userId, request);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("Password reset successfully")
+                .build();
+    }
+
+    @PostMapping("/{userId}/roles")
+    ApiResponse<UserDetailsResponse> assignRole(
+            @PathVariable String userId,
+            @RequestBody @Valid AssignUserRoleRequest request
+    ) {
+        UserDetailsResponse data = userService.assignRole(userId, request.roleName());
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Role assigned successfully")
                 .data(data)
                 .build();
     }

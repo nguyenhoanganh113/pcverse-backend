@@ -1,6 +1,8 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.request.ResetUserPasswordRequest;
+import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.request.CreateAdminUserRequest;
@@ -125,12 +127,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
-
-        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
-            throw new UserServiceException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
-        }
+        User user = findUser(userId);
+        String keycloakId = requireKeycloakId(user);
 
         boolean enabled = switch (status) {
             case ACTIVE -> true;
@@ -141,9 +139,69 @@ public class UserServiceImpl implements UserService {
 
         // Keycloak is updated first so a failed remote call does not leave local DB disabled
         // while the user can still authenticate through Keycloak.
-        keycloakAdminService.setUserEnabled(user.getKeycloakId(), enabled);
+        keycloakAdminService.setUserEnabled(keycloakId, enabled);
 
         user.setUserStatus(status);
+        return userMapper.toUserDetailResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
+        User user = findUser(userId);
+        String keycloakId = requireKeycloakId(user);
+
+        validateIdentityAvailable(user, request.username(), request.email());
+        keycloakAdminService.updateUser(keycloakId, request);
+
+        user.setUsername(request.username());
+        user.setEmail(request.email());
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setPhoneNumber(request.phoneNumber());
+        user.setGender(request.gender());
+        user.setDateOfBirth(request.dateOfBirth());
+        user.setUrlAvatar(request.urlAvatar());
+
+        try {
+            return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException exception) {
+            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(String userId) {
+        User user = findUser(userId);
+        keycloakAdminService.deleteUser(requireKeycloakId(user));
+        userRepository.delete(user);
+        userRepository.flush();
+    }
+
+    @Override
+    public void resetPassword(String userId, ResetUserPasswordRequest request) {
+        User user = findUser(userId);
+        keycloakAdminService.resetPassword(
+                requireKeycloakId(user),
+                request.newPassword(),
+                request.isTemporary()
+        );
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse assignRole(String userId, String roleName) {
+        User user = findUser(userId);
+
+        boolean alreadyAssigned = user.getUserHasRoles().stream()
+                .anyMatch(userRole -> roleName.equalsIgnoreCase(userRole.getRole().getRoleName()));
+        if (alreadyAssigned) {
+            return userMapper.toUserDetailResponse(user);
+        }
+
+        keycloakAdminService.assignClientRole(requireKeycloakId(user), roleName);
+        user.addRole(roleService.createRole(roleName));
         return userMapper.toUserDetailResponse(userRepository.save(user));
     }
 
@@ -245,6 +303,32 @@ public class UserServiceImpl implements UserService {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
         }
+    }
+
+    private User findUser(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private String requireKeycloakId(User user) {
+        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
+            throw new UserServiceException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+        }
+        return user.getKeycloakId();
+    }
+
+    private void validateIdentityAvailable(User currentUser, String username, String email) {
+        userRepository.findByUsernameIgnoreCase(username)
+                .filter(user -> !user.getId().equals(currentUser.getId()))
+                .ifPresent(user -> {
+                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+                });
+
+        userRepository.findByEmailIgnoreCase(email)
+                .filter(user -> !user.getId().equals(currentUser.getId()))
+                .ifPresent(user -> {
+                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+                });
     }
 
     private String requiredClaim(String claims){
