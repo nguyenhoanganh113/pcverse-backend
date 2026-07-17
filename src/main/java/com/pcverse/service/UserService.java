@@ -4,6 +4,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.entity.User;
+import com.pcverse.enums.UserStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public interface UserService {
     UserDetailsResponse myInfo(Jwt jwt);
 
     List<UserDetailsResponse> getAllUsers();
+
+    UserDetailsResponse updateUserStatus(String userId, UserStatus status);
 
     User ensureUserExistsFromToken(Jwt jwt);
 

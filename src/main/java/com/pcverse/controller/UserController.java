@@ -1,6 +1,7 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -53,6 +54,20 @@ public class UserController {
                 .data(users)
                 .build();
 
+    }
+
+    @PatchMapping("/{userId}/status")
+    ApiResponse<UserDetailsResponse> updateUserStatus(
+            @PathVariable String userId,
+            @RequestBody @Valid UpdateUserStatusRequest request
+    ) {
+        UserDetailsResponse data = userService.updateUserStatus(userId, request.status());
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("User status updated successfully")
+                .data(data)
+                .build();
     }
 
 }

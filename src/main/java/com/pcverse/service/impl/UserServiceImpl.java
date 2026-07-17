@@ -12,6 +12,7 @@ import com.pcverse.exception.UserServiceException;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.RoleService;
+import com.pcverse.service.KeycloakAdminService;
 import com.pcverse.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final RoleService roleService;
+    private final KeycloakAdminService keycloakAdminService;
 
     @Override
     public CreateUserResponse createUser(CreateUserRequest request) {
@@ -81,6 +83,31 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(userMapper::toUserDetailResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
+            throw new UserServiceException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+        }
+
+        boolean enabled = switch (status) {
+            case ACTIVE -> true;
+            case DISABLED -> false;
+            case LOCKED, PENDING_VERIFICATION ->
+                    throw new UserServiceException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
+        };
+
+        // Keycloak is updated first so a failed remote call does not leave local DB disabled
+        // while the user can still authenticate through Keycloak.
+        keycloakAdminService.setUserEnabled(user.getKeycloakId(), enabled);
+
+        user.setUserStatus(status);
+        return userMapper.toUserDetailResponse(userRepository.save(user));
     }
 
     @Override
