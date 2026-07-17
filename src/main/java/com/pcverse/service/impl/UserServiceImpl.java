@@ -3,6 +3,7 @@ package com.pcverse.service.impl;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
+import com.pcverse.dto.request.CreateAdminUserRequest;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.enums.Gender;
@@ -64,6 +65,42 @@ public class UserServiceImpl implements UserService {
 
         // 6. Convert Entity sang Response DTO
         return userMapper.toCreateUserResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse createAdminUser(CreateAdminUserRequest request) {
+        String email = request.email();
+        String username = request.username();
+
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()
+                || userRepository.existsByUsernameIgnoreCase(username)) {
+            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        Role adminRole = roleService.createRole("ADMIN");
+        String keycloakId = keycloakAdminService.createAdminUser(request);
+
+        User user = User.builder()
+                .keycloakId(keycloakId)
+                .username(username)
+                .email(email)
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .phoneNumber(request.phoneNumber())
+                .urlAvatar(request.urlAvatar())
+                .gender(request.gender())
+                .dateOfBirth(request.dateOfBirth())
+                .userStatus(UserStatus.ACTIVE)
+                .build();
+        user.addRole(adminRole);
+
+        try {
+            return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException exception) {
+            keycloakAdminService.deleteUser(keycloakId);
+            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        }
     }
 
     @Override
