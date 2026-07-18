@@ -14,9 +14,6 @@ public record UpdateAdminUserRequest(
         @Email(message = "Email must be valid")
         String email,
 
-        @NotBlank(message = "Username is required")
-        String username,
-
         @NotBlank(message = "First name is required")
         String firstName,
 
@@ -37,7 +34,6 @@ public record UpdateAdminUserRequest(
 
     public UpdateAdminUserRequest {
         email = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
-        username = trim(username);
         firstName = trim(firstName);
         lastName = trim(lastName);
         phoneNumber = trim(phoneNumber);

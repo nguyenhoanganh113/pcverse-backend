@@ -86,7 +86,6 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             UserResource userResource = userResource(keycloakUserId);
             UserRepresentation user = userResource.toRepresentation();
 
-            user.setUsername(request.username());
             user.setEmail(request.email());
             user.setFirstName(request.firstName());
             user.setLastName(request.lastName());

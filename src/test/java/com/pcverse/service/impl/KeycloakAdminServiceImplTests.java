@@ -129,12 +129,12 @@ class KeycloakAdminServiceImplTests {
         when(users.get("keycloak-user-id")).thenReturn(userResource);
 
         UserRepresentation current = new UserRepresentation();
+        current.setUsername("unchanged-admin");
         current.setAttributes(new HashMap<>(Map.of("department", List.of("sales"))));
         when(userResource.toRepresentation()).thenReturn(current);
 
         UpdateAdminUserRequest request = new UpdateAdminUserRequest(
                 "updated@pcverse.com",
-                "updated-admin",
                 "Updated",
                 "Admin",
                 "0911111111",
@@ -148,7 +148,7 @@ class KeycloakAdminServiceImplTests {
         ArgumentCaptor<UserRepresentation> userCaptor = ArgumentCaptor.forClass(UserRepresentation.class);
         verify(userResource).update(userCaptor.capture());
         UserRepresentation updated = userCaptor.getValue();
-        assertThat(updated.getUsername()).isEqualTo("updated-admin");
+        assertThat(updated.getUsername()).isEqualTo("unchanged-admin");
         assertThat(updated.getAttributes())
                 .containsEntry("department", List.of("sales"))
                 .containsEntry("phoneNumber", List.of("0911111111"))

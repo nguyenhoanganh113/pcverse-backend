@@ -151,10 +151,9 @@ public class UserServiceImpl implements UserService {
         User user = findUser(userId);
         String keycloakId = requireKeycloakId(user);
 
-        validateIdentityAvailable(user, request.username(), request.email());
+        validateEmailAvailable(user, request.email());
         keycloakAdminService.updateUser(keycloakId, request);
 
-        user.setUsername(request.username());
         user.setEmail(request.email());
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
@@ -317,13 +316,7 @@ public class UserServiceImpl implements UserService {
         return user.getKeycloakId();
     }
 
-    private void validateIdentityAvailable(User currentUser, String username, String email) {
-        userRepository.findByUsernameIgnoreCase(username)
-                .filter(user -> !user.getId().equals(currentUser.getId()))
-                .ifPresent(user -> {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-                });
-
+    private void validateEmailAvailable(User currentUser, String email) {
         userRepository.findByEmailIgnoreCase(email)
                 .filter(user -> !user.getId().equals(currentUser.getId()))
                 .ifPresent(user -> {
