@@ -5,6 +5,7 @@ import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,6 +22,15 @@ import tools.jackson.databind.exc.InvalidFormatException;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            WebRequest request
+    ) {
+        ErrorResponse response = buildErrorCodeResponse(ErrorCode.FORBIDDEN, request, null);
+        return ResponseEntity.status(ErrorCode.FORBIDDEN.getHttpStatus()).body(response);
+    }
 
     @ExceptionHandler(UserServiceException.class)
     public ResponseEntity<ErrorResponse> handleUserServiceException(UserServiceException ex, WebRequest request) {
