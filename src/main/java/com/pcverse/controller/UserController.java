@@ -1,7 +1,6 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateUserRequest;
-import com.pcverse.dto.request.CreateAdminUserRequest;
 import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
@@ -35,19 +34,6 @@ public class UserController {
         return ApiResponse.<CreateUserResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("User created successfully")
-                .data(data)
-                .build();
-    }
-
-    @PostMapping("/admin")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<UserDetailsResponse> createAdminUser(@RequestBody @Valid CreateAdminUserRequest request) {
-        UserDetailsResponse data = userService.createAdminUser(request);
-
-        return ApiResponse.<UserDetailsResponse>builder()
-                .code(HttpStatus.CREATED.value())
-                .message("Admin user created successfully")
                 .data(data)
                 .build();
     }

@@ -1,7 +1,6 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.configuration.KeycloakAdminProperties;
-import com.pcverse.dto.request.CreateAdminUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.exception.UserServiceException;
@@ -11,7 +10,6 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -31,11 +29,8 @@ import java.util.Map;
 @Service
 public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
-    private static final String PASSWORD_CREDENTIAL_TYPE = "password";
-    private static final String ADMIN_ROLE = "ADMIN";
-
-    private final Keycloak keycloakAdminClient;
-    private final KeycloakAdminProperties properties;
+    private final Keycloak keycloak;
+    private final KeycloakAdminProperties keycloakAdminProperties;
 
     @Override
     public void setUserEnabled(String keycloakUserId, boolean enabled) {
@@ -49,35 +44,20 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
-    @Override
-    public String createAdminUser(CreateAdminUserRequest request) {
-        String keycloakUserId = null;
+    private ClientRepresentation findResourceClient() {
 
-        try {
-            UserRepresentation user = toUserRepresentation(request);
+        RealmResource realmResource = keycloak.realm(keycloakAdminProperties.realm());
 
-            try (Response response = realm().users().create(user)) {
-                if (response.getStatus() == Response.Status.CONFLICT.getStatusCode()) {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-                }
-                if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
-                    log.error("Keycloak returned status {} while creating user", response.getStatus());
-                    throw new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                }
+        List<ClientRepresentation> clients = realmResource.clients()
+                .findByClientId(keycloakAdminProperties.resourceClientId());
 
-                keycloakUserId = CreatedResponseUtil.getCreatedId(response);
-            }
-
-            if (keycloakUserId == null || keycloakUserId.isBlank()) {
-                throw new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-            }
-
-            assignClientRole(keycloakUserId, ADMIN_ROLE);
-            return keycloakUserId;
-        } catch (RuntimeException exception) {
-            cleanUpCreatedUser(keycloakUserId);
-            throw translateException("create admin user", keycloakUserId, exception);
-        }
+        return clients.stream()
+                .filter(client -> keycloakAdminProperties.resourceClientId().equals(client.getClientId()))
+                .findFirst()
+                .orElseThrow(() -> {
+                    log.error("Keycloak resource client {} was not found", keycloakAdminProperties.resourceClientId());
+                    return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+                });
     }
 
     @Override
@@ -110,7 +90,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void resetPassword(String keycloakUserId, String newPassword, boolean temporary) {
         CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(PASSWORD_CREDENTIAL_TYPE);
+        credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(newPassword);
         credential.setTemporary(temporary);
 
@@ -124,10 +104,14 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void assignClientRole(String keycloakUserId, String roleName) {
         try {
+            // Lấy UUID nội bộ của client pc-verse-api và representation của role đã tồn tại.
             ClientRepresentation client = findResourceClient();
             ClientResource clientResource = realm().clients().get(client.getId());
             RoleRepresentation role = clientResource.roles().get(roleName).toRepresentation();
 
+            // Tương ứng với Keycloak Admin REST API:
+            // POST /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-id}
+            // Body là một mảng RoleRepresentation, nên dù chỉ gán một role vẫn truyền List.of(role).
             userResource(keycloakUserId)
                     .roles()
                     .clientLevel(client.getId())
@@ -135,29 +119,6 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         } catch (RuntimeException exception) {
             throw translateException("assign client role " + roleName, keycloakUserId, exception);
         }
-    }
-
-    private UserRepresentation toUserRepresentation(CreateAdminUserRequest request) {
-        UserRepresentation user = new UserRepresentation();
-        user.setUsername(request.username());
-        user.setEmail(request.email());
-        user.setFirstName(request.firstName());
-        user.setLastName(request.lastName());
-        user.setEnabled(true);
-        user.setEmailVerified(true);
-        user.setAttributes(userAttributes(
-                request.phoneNumber(),
-                request.gender().name(),
-                request.dateOfBirth().toString(),
-                request.urlAvatar()
-        ));
-
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(PASSWORD_CREDENTIAL_TYPE);
-        credential.setValue(request.password());
-        credential.setTemporary(false);
-        user.setCredentials(List.of(credential));
-        return user;
     }
 
     private Map<String, List<String>> mergeAttributes(
@@ -180,54 +141,12 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         return attributes;
     }
 
-    private Map<String, List<String>> userAttributes(
-            String phoneNumber,
-            String gender,
-            String birthdate,
-            String picture
-    ) {
-        Map<String, List<String>> attributes = new HashMap<>();
-        attributes.put("phoneNumber", List.of(phoneNumber));
-        attributes.put("gender", List.of(gender));
-        attributes.put("birthdate", List.of(birthdate));
-        if (picture != null) {
-            attributes.put("picture", List.of(picture));
-        }
-        return attributes;
-    }
-
-    private ClientRepresentation findResourceClient() {
-        List<ClientRepresentation> clients = realm().clients()
-                .findByClientId(properties.resourceClientId());
-
-        return clients.stream()
-                .filter(client -> properties.resourceClientId().equals(client.getClientId()))
-                .findFirst()
-                .orElseThrow(() -> {
-                    log.error("Keycloak resource client {} was not found", properties.resourceClientId());
-                    return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                });
-    }
-
     private RealmResource realm() {
-        return keycloakAdminClient.realm(properties.realm());
+        return keycloak.realm(keycloakAdminProperties.realm());
     }
 
     private UserResource userResource(String keycloakUserId) {
         return realm().users().get(keycloakUserId);
-    }
-
-    private void cleanUpCreatedUser(String keycloakUserId) {
-        if (keycloakUserId == null) {
-            return;
-        }
-
-        try {
-            userResource(keycloakUserId).remove();
-        } catch (RuntimeException cleanupException) {
-            log.error("Failed to clean up Keycloak user {} after creation failed",
-                    keycloakUserId, cleanupException);
-        }
     }
 
     private UserServiceException translateException(

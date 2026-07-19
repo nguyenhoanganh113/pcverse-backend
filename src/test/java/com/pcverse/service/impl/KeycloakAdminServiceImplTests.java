@@ -1,12 +1,8 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.configuration.KeycloakAdminProperties;
-import com.pcverse.dto.request.CreateAdminUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.enums.Gender;
-import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
-import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,15 +24,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +60,6 @@ class KeycloakAdminServiceImplTests {
     private RoleMappingResource roleMapping;
     @Mock
     private RoleScopeResource roleScope;
-
     private KeycloakAdminServiceImpl service;
 
     @BeforeEach
@@ -80,47 +73,6 @@ class KeycloakAdminServiceImplTests {
         );
         service = new KeycloakAdminServiceImpl(keycloak, properties);
         when(keycloak.realm(REALM_NAME)).thenReturn(realm);
-    }
-
-    @Test
-    void createAdminUserCreatesUserAndAssignsAdminRole() {
-        when(realm.users()).thenReturn(users);
-        when(users.create(any(UserRepresentation.class))).thenReturn(Response.created(
-                URI.create("http://localhost:8090/admin/realms/pc-verse/users/keycloak-user-id")
-        ).build());
-        prepareRoleAssignment("keycloak-user-id", "ADMIN");
-
-        String userId = service.createAdminUser(createRequest());
-
-        assertThat(userId).isEqualTo("keycloak-user-id");
-
-        ArgumentCaptor<UserRepresentation> userCaptor = ArgumentCaptor.forClass(UserRepresentation.class);
-        verify(users).create(userCaptor.capture());
-        UserRepresentation createdUser = userCaptor.getValue();
-        assertThat(createdUser.getUsername()).isEqualTo("admin");
-        assertThat(createdUser.getEmail()).isEqualTo("admin@pcverse.com");
-        assertThat(createdUser.isEnabled()).isTrue();
-        assertThat(createdUser.getAttributes())
-                .containsEntry("phoneNumber", List.of("0900000000"))
-                .containsEntry("gender", List.of("MALE"));
-        assertThat(createdUser.getCredentials()).singleElement().satisfies(credential -> {
-            assertThat(credential.getType()).isEqualTo("password");
-            assertThat(credential.getValue()).isEqualTo("password123");
-            assertThat(credential.isTemporary()).isFalse();
-        });
-        verify(roleScope).add(any());
-    }
-
-    @Test
-    void createAdminUserMapsConflictToUserAlreadyExists() {
-        when(realm.users()).thenReturn(users);
-        when(users.create(any(UserRepresentation.class)))
-                .thenReturn(Response.status(Response.Status.CONFLICT).build());
-
-        assertThatThrownBy(() -> service.createAdminUser(createRequest()))
-                .isInstanceOf(UserServiceException.class)
-                .extracting(exception -> ((UserServiceException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.USER_ALREADY_EXISTS);
     }
 
     @Test
@@ -172,6 +124,18 @@ class KeycloakAdminServiceImplTests {
         assertThat(credential.isTemporary()).isTrue();
     }
 
+    @Test
+    void assignClientRoleMapsExistingRoleToUser() {
+        prepareRoleAssignment("keycloak-user-id", "CUSTOMER");
+
+        service.assignClientRole("keycloak-user-id", "CUSTOMER");
+
+        verify(roleScope).add(argThat(assignedRoles ->
+                assignedRoles.size() == 1
+                        && "CUSTOMER".equals(assignedRoles.get(0).getName())
+        ));
+    }
+
     private void prepareRoleAssignment(String userId, String roleName) {
         ClientRepresentation client = new ClientRepresentation();
         client.setId("resource-client-uuid");
@@ -193,17 +157,4 @@ class KeycloakAdminServiceImplTests {
         when(roleMapping.clientLevel("resource-client-uuid")).thenReturn(roleScope);
     }
 
-    private CreateAdminUserRequest createRequest() {
-        return new CreateAdminUserRequest(
-                "admin@pcverse.com",
-                "admin",
-                "password123",
-                "PCVerse",
-                "Admin",
-                "0900000000",
-                Gender.MALE,
-                LocalDate.of(1990, 1, 1),
-                "https://cdn.pcverse.com/admin.png"
-        );
-    }
 }

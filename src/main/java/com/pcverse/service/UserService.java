@@ -1,7 +1,6 @@
 package com.pcverse.service;
 
 import com.pcverse.dto.request.CreateUserRequest;
-import com.pcverse.dto.request.CreateAdminUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
@@ -15,8 +14,6 @@ import java.util.List;
 public interface UserService {
 
     CreateUserResponse createUser(CreateUserRequest request);
-
-    UserDetailsResponse createAdminUser(CreateAdminUserRequest request);
 
     UserDetailsResponse myInfo(Jwt jwt);
 
