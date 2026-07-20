@@ -2,8 +2,8 @@ package com.pcverse.service.impl;
 
 import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
 import com.pcverse.service.KeycloakAdminService;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
@@ -56,7 +56,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                 .findFirst()
                 .orElseThrow(() -> {
                     log.error("Keycloak resource client {} was not found", keycloakAdminProperties.resourceClientId());
-                    return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+                    return new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
                 });
     }
 
@@ -70,7 +70,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             user.setFirstName(request.firstName());
             user.setLastName(request.lastName());
             user.setEmailVerified(true);
-            user.setAttributes(mergeAttributes(user.getAttributes(), request));
+            user.setAttributes(removeLocalProfileAttributes(user.getAttributes()));
 
             userResource.update(user);
         } catch (RuntimeException exception) {
@@ -121,23 +121,17 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
-    private Map<String, List<String>> mergeAttributes(
-            Map<String, List<String>> currentAttributes,
-            UpdateAdminUserRequest request
+    private Map<String, List<String>> removeLocalProfileAttributes(
+            Map<String, List<String>> currentAttributes
     ) {
         Map<String, List<String>> attributes = currentAttributes == null
                 ? new HashMap<>()
                 : new HashMap<>(currentAttributes);
 
-        attributes.put("phoneNumber", List.of(request.phoneNumber()));
-        attributes.put("gender", List.of(request.gender().name()));
-        attributes.put("birthdate", List.of(request.dateOfBirth().toString()));
-
-        if (request.urlAvatar() == null) {
-            attributes.remove("picture");
-        } else {
-            attributes.put("picture", List.of(request.urlAvatar()));
-        }
+        attributes.remove("phoneNumber");
+        attributes.remove("gender");
+        attributes.remove("birthdate");
+        attributes.remove("picture");
         return attributes;
     }
 
@@ -149,19 +143,19 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         return realm().users().get(keycloakUserId);
     }
 
-    private UserServiceException translateException(
+    private AppException translateException(
             String operation,
             String keycloakUserId,
             RuntimeException exception
     ) {
-        if (exception instanceof UserServiceException userServiceException) {
-            return userServiceException;
+        if (exception instanceof AppException appException) {
+            return appException;
         }
 
         if (exception instanceof WebApplicationException webException
                 && webException.getResponse() != null
                 && webException.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
-            return new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            return new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
 
         if (exception instanceof WebApplicationException || exception instanceof ProcessingException) {
@@ -170,6 +164,6 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             log.error("Unexpected Keycloak Admin Client error while trying to {} for user {}",
                     operation, keycloakUserId, exception);
         }
-        return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        return new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
     }
 }

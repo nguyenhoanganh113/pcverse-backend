@@ -5,26 +5,28 @@ import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
-import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
-import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
+import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.KeycloakAdminService;
 import com.pcverse.service.UserService;
+import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.admin.client.CreatedResponseUtil;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -34,34 +36,63 @@ import java.util.Objects;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
+    @Value("${keycloak.admin.realm}")
+    private String realm;
+
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final Keycloak keycloak;
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
 
     @Override
+    @Transactional
     public CreateUserResponse createUser(CreateUserRequest request) {
 
-        // 1. Convert DTO sang Entity
-        User user = userMapper.toUser(request);
+        if (userRepository.existsByUsernameIgnoreCase(request.username()) ||
+                userRepository.existsByEmailIgnoreCase(request.email())) {
 
-        // 2. Mã hoá password
-        user.setPassword(passwordEncoder.encode(request.password()));
+            log.error("Username or Email already exists when admin create a user");
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+
+        }
+
+        // 1. Convert DTO sang Entity (bỏ qua password)
+        User user = userMapper.toUser(request);
         user.setUserStatus(UserStatus.ACTIVE);
 
-        // 3. Tạo hoặc lấy role CUSTOMER
-        Role role = roleService.createRole("CUSTOMER");
-
-        // 4. Gán role cho user
-        user.addRole(role);
-
-        // 5. Lưu user vào database
         try {
+            UserRepresentation userRepresentation = new UserRepresentation();
+            userRepresentation.setUsername(request.username());
+            userRepresentation.setEmail(request.email());
+            userRepresentation.setFirstName(request.firstName());
+            userRepresentation.setLastName(request.lastName());
+            userRepresentation.setEnabled(true);
+            userRepresentation.setEmailVerified(true);
+
+            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+            credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+            credentialRepresentation.setValue(request.password());
+            credentialRepresentation.setTemporary(false);
+            userRepresentation.setCredentials(List.of(credentialRepresentation));
+
+            Response response = keycloak.realm(realm).users().create(userRepresentation);
+
+            try (response) {
+                if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
+                    log.error("Keycloak returned status {} while creating user", response.getStatus());
+                    throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+                }
+            }
+
+            String userId = CreatedResponseUtil.getCreatedId(response);
+            user.setKeycloakId(userId);
             userRepository.save(user);
-        } catch (DataIntegrityViolationException exception) {
-            log.error("User already exists");
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            log.info("User created with id {}", userId);
+        } catch (Exception e) {
+            log.error("Error creating user profile: {}", e.getMessage());
+            userRepository.delete(user);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
 
         // 6. Convert Entity sang Response DTO
@@ -97,7 +128,7 @@ public class UserServiceImpl implements UserService {
             case ACTIVE -> true;
             case DISABLED -> false;
             case LOCKED, PENDING_VERIFICATION ->
-                    throw new UserServiceException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
+                    throw new AppException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
         };
 
         // Keycloak is updated first so a failed remote call does not leave local DB disabled
@@ -128,7 +159,7 @@ public class UserServiceImpl implements UserService {
         try {
             return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
@@ -182,7 +213,7 @@ public class UserServiceImpl implements UserService {
 
         // Nếu email chưa được verify
         if (!Boolean.TRUE.equals(jwt.getClaim("email_verified"))) {
-            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            throw new AppException(ErrorCode.TOKEN_INVALID);
         }
 
         return userRepository.findByKeycloakId(keycloakId)
@@ -195,14 +226,14 @@ public class UserServiceImpl implements UserService {
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
-                        .orElseGet(() -> createUserFromToken(jwt, keycloakId, username, email)));
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
     }
 
     private User linkExistingUser(User user, String keycloakId, String username) {
 
         // User này đã link với keycloakId khác trong keycloak database
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(keycloakId)) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
         // set keycloakId để user trong keycloak database
         user.setKeycloakId(keycloakId);
@@ -216,31 +247,7 @@ public class UserServiceImpl implements UserService {
         try {
             return userRepository.save(user);
         } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-        }
-    }
-
-    private User createUserFromToken(Jwt jwt, String keycloakId, String username, String email) {
-
-        validateUsernameAvailable(username);
-
-        User user = User.builder()
-                .keycloakId(keycloakId)
-                .username(username)
-                .email(email)
-                .firstName(requiredClaim(jwt.getClaimAsString("given_name")))
-                .lastName(requiredClaim(jwt.getClaimAsString("family_name")))
-                .phoneNumber(requiredClaim(jwt.getClaimAsString("phone_number")))
-                .urlAvatar(trimToNull(jwt.getClaimAsString("picture")))
-                .gender(Gender.valueOf(jwt.getClaimAsString("gender")))
-                .dateOfBirth(LocalDate.parse(requiredClaim(jwt.getClaimAsString("birthdate"))))
-                .userStatus(UserStatus.ACTIVE)
-                .build();
-
-        try {
-            return userRepository.save(user);
-        } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
@@ -249,32 +256,28 @@ public class UserServiceImpl implements UserService {
         user.setUsername(username);
         user.setFirstName(requiredClaim(jwt.getClaimAsString("given_name")));
         user.setLastName(requiredClaim(jwt.getClaimAsString("family_name")));
-        user.setPhoneNumber(requiredClaim(jwt.getClaimAsString("phone_number")));
-        user.setUrlAvatar(trimToNull(jwt.getClaimAsString("picture")));
-        user.setGender(Gender.valueOf(jwt.getClaimAsString("gender")));
-        user.setDateOfBirth(LocalDate.parse(requiredClaim(jwt.getClaimAsString("birthdate"))));
 
         try {
             return userRepository.save(user);
         } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
     private void validateUsernameAvailable(String username) {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
     private User findUser(String userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
     private String requireKeycloakId(User user) {
         if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
-            throw new UserServiceException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
         }
         return user.getKeycloakId();
     }
@@ -283,13 +286,13 @@ public class UserServiceImpl implements UserService {
         userRepository.findByEmailIgnoreCase(email)
                 .filter(user -> !user.getId().equals(currentUser.getId()))
                 .ifPresent(user -> {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+                    throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
                 });
     }
 
     private String requiredClaim(String claims){
         if (claims == null || claims.isBlank()){
-            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            throw new AppException(ErrorCode.TOKEN_INVALID);
         }
         return claims.strip();
     }
@@ -301,10 +304,6 @@ public class UserServiceImpl implements UserService {
             }
         }
         return "";
-    }
-
-    private String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.strip();
     }
 
     private String usernameFromEmail(String email) {

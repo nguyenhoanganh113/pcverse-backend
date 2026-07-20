@@ -15,7 +15,6 @@ import java.util.Locale;
 public interface UserMapper {
 
     @Mapping(target = "password", ignore = true)
-    @Mapping(target = "gender", expression = "java(toGender(createUserRequest.gender()))")
     User toUser(CreateUserRequest createUserRequest);
 
     CreateUserResponse toCreateUserResponse(User user);

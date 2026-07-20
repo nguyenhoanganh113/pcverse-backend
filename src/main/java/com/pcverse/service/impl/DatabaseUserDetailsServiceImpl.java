@@ -2,8 +2,8 @@ package com.pcverse.service.impl;
 
 import com.pcverse.entity.SecurityUser;
 import com.pcverse.entity.User;
+import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.DatabaseUserDetailsService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class DatabaseUserDetailsServiceImpl implements DatabaseUserDetailsServic
     @Override
     public UserDetails loadUserByUsername(@NonNull String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return new SecurityUser(user);
     }

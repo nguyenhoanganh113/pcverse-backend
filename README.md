@@ -43,48 +43,31 @@ KEYCLOAK_ADMIN_CLIENT_SECRET=replace-with-client-secret
 KEYCLOAK_RESOURCE_CLIENT_ID=pc-verse-api
 ```
 
-### Creating users through the Keycloak Admin REST API
+### Creating users through the backend Admin API
 
-The application does not expose a `POST /api/v1/users/admin` wrapper. Obtain a service-account
-token and create the user directly in Keycloak:
-
-```http
-POST http://localhost:8090/realms/pc-verse/protocol/openid-connect/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=client_credentials&client_id=pc-verse-admin&client_secret=<client-secret>
-```
+Create users through the backend so identity data is created in Keycloak while application
+profile data is stored in the local database:
 
 ```http
-POST http://localhost:8090/admin/realms/pc-verse/users
-Authorization: Bearer <service-account-access-token>
+POST http://localhost:8083/api/v1/admin/users
+Authorization: Bearer <admin-user-access-token>
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "email": "admin@pcverse.com",
+  "username": "new-user",
+  "email": "new-user@pcverse.com",
+  "password": "Password@123",
   "firstName": "PCVerse",
-  "lastName": "Admin",
-  "enabled": true,
-  "emailVerified": true,
-  "attributes": {
-    "phoneNumber": ["0900000000"],
-    "gender": ["MALE"],
-    "birthdate": ["1990-01-01"]
-  },
-  "credentials": [
-    {
-      "type": "password",
-      "value": "Admin@123456",
-      "temporary": false
-    }
-  ]
+  "lastName": "User",
+  "phoneNumber": "0900000000",
+  "gender": "MALE",
+  "dateOfBirth": "1990-01-01",
+  "urlAvatar": null
 }
 ```
 
-Keycloak returns `201 Created`; the new Keycloak user ID is the final path segment of the
-`Location` response header. A user created this way is added to the application database when
-they first authenticate and call `GET /api/v1/users/me`.
+`phoneNumber`, `gender`, `dateOfBirth`, and `urlAvatar` are application-owned fields. They are
+stored only in the local database and are not synchronized to or from Keycloak.
 
 All administration endpoints require a JWT containing the `ADMIN` client role:
 

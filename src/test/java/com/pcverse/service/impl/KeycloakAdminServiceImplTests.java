@@ -82,7 +82,13 @@ class KeycloakAdminServiceImplTests {
 
         UserRepresentation current = new UserRepresentation();
         current.setUsername("unchanged-admin");
-        current.setAttributes(new HashMap<>(Map.of("department", List.of("sales"))));
+        current.setAttributes(new HashMap<>(Map.of(
+                "department", List.of("sales"),
+                "phoneNumber", List.of("0900000000"),
+                "gender", List.of("MALE"),
+                "birthdate", List.of("1990-01-01"),
+                "picture", List.of("https://example.com/old-avatar.png")
+        )));
         when(userResource.toRepresentation()).thenReturn(current);
 
         UpdateAdminUserRequest request = new UpdateAdminUserRequest(
@@ -103,9 +109,7 @@ class KeycloakAdminServiceImplTests {
         assertThat(updated.getUsername()).isEqualTo("unchanged-admin");
         assertThat(updated.getAttributes())
                 .containsEntry("department", List.of("sales"))
-                .containsEntry("phoneNumber", List.of("0911111111"))
-                .containsEntry("gender", List.of("FEMALE"))
-                .doesNotContainKey("picture");
+                .doesNotContainKeys("phoneNumber", "gender", "birthdate", "picture");
     }
 
     @Test

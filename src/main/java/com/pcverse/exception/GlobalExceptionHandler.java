@@ -32,8 +32,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ErrorCode.FORBIDDEN.getHttpStatus()).body(response);
     }
 
-    @ExceptionHandler(UserServiceException.class)
-    public ResponseEntity<ErrorResponse> handleUserServiceException(UserServiceException ex, WebRequest request) {
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ErrorResponse> handleAppException(AppException ex, WebRequest request) {
         ErrorCode errorCode = ex.getErrorCode();
         ErrorResponse response = buildErrorCodeResponse(errorCode, request, null);
 
