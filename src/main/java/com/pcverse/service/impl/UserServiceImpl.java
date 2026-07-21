@@ -6,6 +6,7 @@ import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.entity.User;
+import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
@@ -226,6 +227,40 @@ public class UserServiceImpl implements UserService {
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
                         .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse removeRole(String userId, String roleName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String keycloakId = user.getKeycloakId();
+
+        UserHasRole assignedRole = user.getUserHasRoles().stream()
+                .filter(userRole ->
+                        roleName.equalsIgnoreCase(
+                                userRole.getRole().getRoleName()
+                        )
+                )
+                .findFirst()
+                .orElseThrow(() ->
+                        new AppException(ErrorCode.USER_ROLE_NOT_ASSIGNED)
+                );
+
+        String actualRoleName = assignedRole.getRole().getRoleName();
+
+        // Xoá ở keycloak
+        keycloakAdminService.removeClientRole(
+                keycloakId,
+                actualRoleName
+        );
+
+        user.getUserHasRoles().remove(assignedRole);
+
+        User updatedUser = userRepository.saveAndFlush(user);
+        return userMapper.toUserDetailResponse(updatedUser);
+
     }
 
     private User linkExistingUser(User user, String keycloakId, String username) {

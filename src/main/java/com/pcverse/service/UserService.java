@@ -31,4 +31,6 @@ public interface UserService {
 
     User ensureUserExistsFromToken(Jwt jwt);
 
+    UserDetailsResponse removeRole(String userId, String roleName);
+
 }

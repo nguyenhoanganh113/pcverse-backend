@@ -20,7 +20,9 @@ public enum ErrorCode {
     USER_STATUS_NOT_SUPPORTED(400, "This user status cannot be synchronized with Keycloak", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED(401, "Vui lòng đăng nhập để truy cập", HttpStatus.UNAUTHORIZED),
     FORBIDDEN(403, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
-    MISSING_LOGOUT_INFO(400, "Authorization header or refresh token is missing", HttpStatus.BAD_REQUEST);
+    MISSING_LOGOUT_INFO(400, "Authorization header or refresh token is missing", HttpStatus.BAD_REQUEST),
+    USER_ROLE_NOT_ASSIGNED(404,"Role is not assigned to this user", HttpStatus.NOT_FOUND
+    );
 
     private final int code;
     private final String message;

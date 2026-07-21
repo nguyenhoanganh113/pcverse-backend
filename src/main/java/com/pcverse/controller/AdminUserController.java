@@ -61,4 +61,16 @@ public class AdminUserController {
                 .build();
     }
 
+    @DeleteMapping("/{userId}/roles/{roleName}")
+    ApiResponse<UserDetailsResponse> removeRole(@PathVariable String userId,
+                                                @PathVariable String roleName) {
+        UserDetailsResponse data = userService.removeRole(userId, roleName);
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Role removed successfully")
+                .data(data)
+                .build();
+    }
+
 }

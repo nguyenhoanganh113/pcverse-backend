@@ -216,6 +216,95 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
+    @Override
+    public void removeClientRole(String keycloakUserId, String roleName) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            // Tìm UUID nội bộ của client pc-verse-api.
+            List<ClientRepresentation> clients = realmResource.clients()
+                    .findByClientId(keycloakAdminProperties.resourceClientId());
+
+            ClientRepresentation clientRepresentation = clients.stream()
+                    .filter(client ->
+                            keycloakAdminProperties.resourceClientId()
+                                    .equals(client.getClientId())
+                    )
+                    .findFirst()
+                    .orElseThrow(() -> {
+                        log.error(
+                                "Keycloak resource client {} was not found",
+                                keycloakAdminProperties.resourceClientId()
+                        );
+                        return new AppException(
+                                ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+                        );
+                    });
+
+            // Lấy representation của role cần gỡ.
+            ClientResource clientResource = realmResource.clients()
+                    .get(clientRepresentation.getId());
+
+            RoleRepresentation role = clientResource.roles()
+                    .get(roleName)
+                    .toRepresentation();
+
+            UserResource userResource = realmResource.users()
+                    .get(keycloakUserId);
+
+            // DELETE /admin/realms/{realm}/users/{user-id}
+            //        /role-mappings/clients/{client-id}
+            userResource.roles()
+                    .clientLevel(clientRepresentation.getId())
+                    .remove(List.of(role));
+
+        } catch (AppException exception) {
+            throw exception;
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected removing client role {} from user {} with status {}",
+                    roleName,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while removing client role {} from user {}",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while removing client role {} from user {} in Keycloak",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        }
+    }
+
     private RealmResource realm() {
         return keycloak.realm(keycloakAdminProperties.realm());
     }
