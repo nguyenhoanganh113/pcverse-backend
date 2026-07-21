@@ -9,6 +9,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import java.util.List;
 import java.util.Locale;
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -19,14 +20,14 @@ public interface UserMapper {
 
     CreateUserResponse toCreateUserResponse(User user);
 
+    @Mapping(target = "roles", expression = "java(toRoleNames(user))")
     UserDetailsResponse toUserDetailResponse(User user);
 
-    default Gender toGender(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        return Gender.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    default List<String> toRoleNames(User user) {
+        return user.getUserHasRoles().stream()
+                .map(userRole -> userRole.getRole().getRoleName())
+                .sorted()
+                .toList();
     }
 
 }

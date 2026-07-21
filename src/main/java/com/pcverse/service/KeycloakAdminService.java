@@ -1,8 +1,11 @@
 package com.pcverse.service;
 
+import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 
 public interface KeycloakAdminService {
+
+    String createUser(CreateUserRequest request);
 
     void setUserEnabled(String keycloakUserId, boolean enabled);
 

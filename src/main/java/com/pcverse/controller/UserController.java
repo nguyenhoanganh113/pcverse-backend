@@ -1,7 +1,6 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateUserRequest;
-import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
@@ -114,21 +113,6 @@ public class UserController {
         return ApiResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .message("Password reset successfully")
-                .build();
-    }
-
-    @PostMapping("/{userId}/roles")
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<UserDetailsResponse> assignRole(
-            @PathVariable String userId,
-            @RequestBody @Valid AssignUserRoleRequest request
-    ) {
-        UserDetailsResponse data = userService.assignRole(userId, request.roleName());
-
-        return ApiResponse.<UserDetailsResponse>builder()
-                .code(HttpStatus.OK.value())
-                .message("Role assigned successfully")
-                .data(data)
                 .build();
     }
 

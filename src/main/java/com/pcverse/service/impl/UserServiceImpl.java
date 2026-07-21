@@ -14,14 +14,8 @@ import com.pcverse.repository.UserRepository;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.KeycloakAdminService;
 import com.pcverse.service.UserService;
-import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.keycloak.admin.client.CreatedResponseUtil;
-import org.keycloak.admin.client.Keycloak;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -36,11 +30,7 @@ import java.util.Objects;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
-    @Value("${keycloak.admin.realm}")
-    private String realm;
-
     private final UserRepository userRepository;
-    private final Keycloak keycloak;
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
@@ -57,45 +47,37 @@ public class UserServiceImpl implements UserService {
 
         }
 
-        // 1. Convert DTO sang Entity (bỏ qua password)
+        // Convert DTO sang Entity (bỏ qua password)
         User user = userMapper.toUser(request);
         user.setUserStatus(UserStatus.ACTIVE);
 
+        String keycloakUserId = keycloakAdminService.createUser(request);
+        user.setKeycloakId(keycloakUserId);
+
         try {
-            UserRepresentation userRepresentation = new UserRepresentation();
-            userRepresentation.setUsername(request.username());
-            userRepresentation.setEmail(request.email());
-            userRepresentation.setFirstName(request.firstName());
-            userRepresentation.setLastName(request.lastName());
-            userRepresentation.setEnabled(true);
-            userRepresentation.setEmailVerified(true);
+            userRepository.saveAndFlush(user);
+            log.info("User created with Keycloak ID {}", keycloakUserId);
+        } catch (RuntimeException exception) {
 
-            CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-            credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
-            credentialRepresentation.setValue(request.password());
-            credentialRepresentation.setTemporary(false);
-            userRepresentation.setCredentials(List.of(credentialRepresentation));
-
-            Response response = keycloak.realm(realm).users().create(userRepresentation);
-
-            try (response) {
-                if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
-                    log.error("Keycloak returned status {} while creating user", response.getStatus());
-                    throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                }
+            try {
+                keycloakAdminService.deleteUser(keycloakUserId);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+                log.error(
+                        "Failed to remove Keycloak user {} after local save failed",
+                        keycloakUserId,
+                        cleanupException
+                );
             }
 
-            String userId = CreatedResponseUtil.getCreatedId(response);
-            user.setKeycloakId(userId);
-            userRepository.save(user);
-            log.info("User created with id {}", userId);
-        } catch (Exception e) {
-            log.error("Error creating user profile: {}", e.getMessage());
-            userRepository.delete(user);
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            if (exception instanceof DataIntegrityViolationException) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            throw exception;
         }
 
-        // 6. Convert Entity sang Response DTO
+        // Convert Entity sang Response DTO
         return userMapper.toCreateUserResponse(user);
     }
 
@@ -185,16 +167,22 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsResponse assignRole(String userId, String roleName) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
+            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+        }
+        String keycloakId = user.getKeycloakId();
 
         boolean alreadyAssigned = user.getUserHasRoles().stream()
                 .anyMatch(userRole -> roleName.equalsIgnoreCase(userRole.getRole().getRoleName()));
-        if (alreadyAssigned) {
-            return userMapper.toUserDetailResponse(user);
+        if (!alreadyAssigned) {
+            user.addRole(roleService.createRole(roleName));
+            userRepository.saveAndFlush(user);
         }
 
-        keycloakAdminService.assignClientRole(requireKeycloakId(user), roleName);
-        user.addRole(roleService.createRole(roleName));
+        keycloakAdminService.assignClientRole(keycloakId, roleName);
         return userMapper.toUserDetailResponse(userRepository.save(user));
     }
 

@@ -1,8 +1,10 @@
 package com.pcverse.controller;
 
+import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,18 @@ public class AdminUserController {
                 .build();
     }
 
+    @PostMapping("/{userId}/roles")
+    ApiResponse<UserDetailsResponse> assignRole(
+            @PathVariable String userId,
+            @RequestBody @Valid AssignUserRoleRequest request
+    ) {
+        UserDetailsResponse data = userService.assignRole(userId, request.roleName());
 
-
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Role assigned successfully")
+                .data(data)
+                .build();
+    }
 
 }

@@ -76,5 +76,5 @@ All administration endpoints require a JWT containing the `ADMIN` client role:
 | `PUT` | `/api/v1/users/{userId}` | Update the user in Keycloak and the database |
 | `DELETE` | `/api/v1/users/{userId}` | Delete the user from Keycloak and the database |
 | `PUT` | `/api/v1/users/{userId}/password` | Reset the Keycloak password |
-| `POST` | `/api/v1/users/{userId}/roles` | Assign a client role in Keycloak and the database |
+| `POST` | `/api/v1/admin/users/{userId}/roles` | Assign a client role in Keycloak and the database |
 | `PATCH` | `/api/v1/users/{userId}/status` | Enable or disable the Keycloak user |

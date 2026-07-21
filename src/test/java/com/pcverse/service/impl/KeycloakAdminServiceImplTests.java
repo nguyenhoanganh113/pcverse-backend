@@ -1,8 +1,12 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.configuration.KeycloakAdminProperties;
+import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.enums.Gender;
+import com.pcverse.exception.AppException;
+import com.pcverse.exception.ErrorCode;
+import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,11 +29,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +66,8 @@ class KeycloakAdminServiceImplTests {
     private RoleMappingResource roleMapping;
     @Mock
     private RoleScopeResource roleScope;
+    @Mock
+    private Response createUserResponse;
     private KeycloakAdminServiceImpl service;
 
     @BeforeEach
@@ -73,6 +81,49 @@ class KeycloakAdminServiceImplTests {
         );
         service = new KeycloakAdminServiceImpl(keycloak, properties);
         when(keycloak.realm(REALM_NAME)).thenReturn(realm);
+    }
+
+    @Test
+    void createUserReturnsKeycloakUserId() {
+        when(realm.users()).thenReturn(users);
+        when(users.create(org.mockito.ArgumentMatchers.any(UserRepresentation.class)))
+                .thenReturn(createUserResponse);
+        when(createUserResponse.getStatus()).thenReturn(Response.Status.CREATED.getStatusCode());
+        when(createUserResponse.getStatusInfo()).thenReturn(Response.Status.CREATED);
+        when(createUserResponse.getLocation()).thenReturn(
+                URI.create("http://localhost:8090/admin/realms/pc-verse/users/keycloak-user-id")
+        );
+
+        String keycloakUserId = service.createUser(createUserRequest());
+
+        assertThat(keycloakUserId).isEqualTo("keycloak-user-id");
+
+        ArgumentCaptor<UserRepresentation> userCaptor = ArgumentCaptor.forClass(UserRepresentation.class);
+        verify(users).create(userCaptor.capture());
+        UserRepresentation createdUser = userCaptor.getValue();
+        assertThat(createdUser.getUsername()).isEqualTo("new-user");
+        assertThat(createdUser.getEmail()).isEqualTo("new-user@pcverse.com");
+        assertThat(createdUser.isEnabled()).isTrue();
+        assertThat(createdUser.isEmailVerified()).isTrue();
+        assertThat(createdUser.getCredentials()).singleElement().satisfies(credential -> {
+            assertThat(credential.getType()).isEqualTo(CredentialRepresentation.PASSWORD);
+            assertThat(credential.getValue()).isEqualTo("Password@123");
+            assertThat(credential.isTemporary()).isFalse();
+        });
+        verify(createUserResponse).close();
+    }
+
+    @Test
+    void createUserMapsConflictToUserAlreadyExists() {
+        when(realm.users()).thenReturn(users);
+        when(users.create(org.mockito.ArgumentMatchers.any(UserRepresentation.class)))
+                .thenReturn(createUserResponse);
+        when(createUserResponse.getStatus()).thenReturn(Response.Status.CONFLICT.getStatusCode());
+
+        assertThatThrownBy(() -> service.createUser(createUserRequest()))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.USER_ALREADY_EXISTS));
     }
 
     @Test
@@ -159,6 +210,20 @@ class KeycloakAdminServiceImplTests {
         when(users.get(userId)).thenReturn(userResource);
         when(userResource.roles()).thenReturn(roleMapping);
         when(roleMapping.clientLevel("resource-client-uuid")).thenReturn(roleScope);
+    }
+
+    private CreateUserRequest createUserRequest() {
+        return new CreateUserRequest(
+                "new-user",
+                "new-user@pcverse.com",
+                "Password@123",
+                "New",
+                "User",
+                "0900000000",
+                "MALE",
+                LocalDate.of(2000, 1, 1),
+                null
+        );
     }
 
 }
