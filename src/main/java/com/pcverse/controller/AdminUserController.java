@@ -2,6 +2,7 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -42,6 +43,20 @@ public class AdminUserController {
         return ApiResponse.<UserDetailsResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Role assigned successfully")
+                .data(data)
+                .build();
+    }
+
+    @PutMapping("/{userId}")
+    ApiResponse<UserDetailsResponse> updateUser(
+            @PathVariable String userId,
+            @RequestBody @Valid UpdateAdminUserRequest request
+    ) {
+        UserDetailsResponse data = userService.updateUser(userId, request);
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("User updated successfully")
                 .data(data)
                 .build();
     }

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -104,22 +105,36 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
-
     @Override
     public void updateUser(String keycloakUserId, UpdateAdminUserRequest request) {
         try {
-            UserResource userResource = userResource(keycloakUserId);
-            UserRepresentation user = userResource.toRepresentation();
+            RealmResource realmResource = keycloak.realm(keycloakAdminProperties.realm());
 
-            user.setEmail(request.email());
-            user.setFirstName(request.firstName());
-            user.setLastName(request.lastName());
-            user.setEmailVerified(true);
-            user.setAttributes(removeLocalProfileAttributes(user.getAttributes()));
+            UserRepresentation userRepresentation = new UserRepresentation();
 
-            userResource.update(user);
+            userRepresentation.setEmail(request.email());
+            userRepresentation.setFirstName(request.firstName());
+            userRepresentation.setLastName(request.lastName());
+
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .update(userRepresentation);
+
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse() != null
+                    && exception.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            log.error("Keycloak rejected updating user {}", keycloakUserId, exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error("Unable to connect to Keycloak while updating user {}", keycloakUserId, exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         } catch (RuntimeException exception) {
-            throw translateException("update user", keycloakUserId, exception);
+            log.error("Unexpected error while updating user {} in Keycloak", keycloakUserId, exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
     }
 
@@ -202,20 +217,6 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             );
             throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
-    }
-
-    private Map<String, List<String>> removeLocalProfileAttributes(
-            Map<String, List<String>> currentAttributes
-    ) {
-        Map<String, List<String>> attributes = currentAttributes == null
-                ? new HashMap<>()
-                : new HashMap<>(currentAttributes);
-
-        attributes.remove("phoneNumber");
-        attributes.remove("gender");
-        attributes.remove("birthdate");
-        attributes.remove("picture");
-        return attributes;
     }
 
     private RealmResource realm() {

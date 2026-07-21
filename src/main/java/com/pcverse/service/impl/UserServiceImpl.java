@@ -125,10 +125,18 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
         User user = findUser(userId);
-        String keycloakId = requireKeycloakId(user);
 
-        validateEmailAvailable(user, request.email());
-        keycloakAdminService.updateUser(keycloakId, request);
+        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
+            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+        }
+        String keycloakId = user.getKeycloakId();
+
+        boolean emailExists = !user.getEmail().equalsIgnoreCase(request.email())
+                && userRepository.existsByEmailIgnoreCase(request.email());
+
+        if (emailExists) {
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        }
 
         user.setEmail(request.email());
         user.setFirstName(request.firstName());
@@ -139,10 +147,13 @@ public class UserServiceImpl implements UserService {
         user.setUrlAvatar(request.urlAvatar());
 
         try {
-            return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
+            userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
+
+        keycloakAdminService.updateUser(keycloakId, request);
+        return userMapper.toUserDetailResponse(user);
     }
 
     @Override
@@ -268,14 +279,6 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
         }
         return user.getKeycloakId();
-    }
-
-    private void validateEmailAvailable(User currentUser, String email) {
-        userRepository.findByEmailIgnoreCase(email)
-                .filter(user -> !user.getId().equals(currentUser.getId()))
-                .ifPresent(user -> {
-                    throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
-                });
     }
 
     private String requiredClaim(String claims){

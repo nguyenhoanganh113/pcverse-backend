@@ -30,9 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -127,20 +125,9 @@ class KeycloakAdminServiceImplTests {
     }
 
     @Test
-    void updateUserPreservesUnmanagedAttributes() {
+    void updateUserSendsOnlyRequestedIdentityFields() {
         when(realm.users()).thenReturn(users);
         when(users.get("keycloak-user-id")).thenReturn(userResource);
-
-        UserRepresentation current = new UserRepresentation();
-        current.setUsername("unchanged-admin");
-        current.setAttributes(new HashMap<>(Map.of(
-                "department", List.of("sales"),
-                "phoneNumber", List.of("0900000000"),
-                "gender", List.of("MALE"),
-                "birthdate", List.of("1990-01-01"),
-                "picture", List.of("https://example.com/old-avatar.png")
-        )));
-        when(userResource.toRepresentation()).thenReturn(current);
 
         UpdateAdminUserRequest request = new UpdateAdminUserRequest(
                 "updated@pcverse.com",
@@ -157,10 +144,11 @@ class KeycloakAdminServiceImplTests {
         ArgumentCaptor<UserRepresentation> userCaptor = ArgumentCaptor.forClass(UserRepresentation.class);
         verify(userResource).update(userCaptor.capture());
         UserRepresentation updated = userCaptor.getValue();
-        assertThat(updated.getUsername()).isEqualTo("unchanged-admin");
-        assertThat(updated.getAttributes())
-                .containsEntry("department", List.of("sales"))
-                .doesNotContainKeys("phoneNumber", "gender", "birthdate", "picture");
+        assertThat(updated.getUsername()).isNull();
+        assertThat(updated.getEmail()).isEqualTo("updated@pcverse.com");
+        assertThat(updated.getFirstName()).isEqualTo("Updated");
+        assertThat(updated.getLastName()).isEqualTo("Admin");
+        assertThat(updated.getAttributes()).isNull();
     }
 
     @Test
