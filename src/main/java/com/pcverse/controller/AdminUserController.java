@@ -2,6 +2,7 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
@@ -107,6 +108,19 @@ public class AdminUserController {
         return ApiResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .message("User session terminated successfully")
+                .build();
+    }
+
+    @PostMapping("/{userId}/required-actions-email")
+    ApiResponse<Void> sendRequiredActionsEmail(
+            @PathVariable String userId,
+            @RequestBody @Valid SendRequiredActionsEmailRequest request
+    ) {
+        userService.sendRequiredActionsEmail(userId, request);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("Required-actions email sent successfully")
                 .build();
     }
 

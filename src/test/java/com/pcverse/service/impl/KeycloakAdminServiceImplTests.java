@@ -5,6 +5,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.enums.Gender;
+import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import jakarta.ws.rs.NotFoundException;
@@ -231,6 +232,27 @@ class KeycloakAdminServiceImplTests {
                 .isInstanceOfSatisfying(AppException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.USER_SESSION_NOT_FOUND));
+    }
+
+    @Test
+    void sendRequiredActionsEmailMapsEnumsAndRemovesDuplicates() {
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+
+        service.sendRequiredActionsEmail(
+                "keycloak-user-id",
+                List.of(
+                        KeycloakRequiredAction.UPDATE_PASSWORD,
+                        KeycloakRequiredAction.VERIFY_EMAIL,
+                        KeycloakRequiredAction.UPDATE_PASSWORD
+                ),
+                900
+        );
+
+        verify(userResource).executeActionsEmail(
+                List.of("UPDATE_PASSWORD", "VERIFY_EMAIL"),
+                900
+        );
     }
 
     private void prepareRoleAssignment(String userId, String roleName) {

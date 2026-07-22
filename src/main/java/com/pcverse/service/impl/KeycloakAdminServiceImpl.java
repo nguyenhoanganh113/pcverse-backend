@@ -4,6 +4,7 @@ import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.UserSessionResponse;
+import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.service.KeycloakAdminService;
@@ -458,6 +459,60 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             log.error(
                     "Unexpected error while deleting user session {} from Keycloak",
                     sessionId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public void sendRequiredActionsEmail(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions,
+            int lifespanSeconds
+    ) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            List<String> actionNames = actions.stream()
+                    .map(KeycloakRequiredAction::name)
+                    .distinct()
+                    .toList();
+
+            // PUT /admin/realms/{realm}/users/{user-id}/execute-actions-email
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .executeActionsEmail(actionNames, lifespanSeconds);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected sending required-actions email to user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while sending required-actions email to user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while sending required-actions email to user {} from Keycloak",
+                    keycloakUserId,
                     exception
             );
 

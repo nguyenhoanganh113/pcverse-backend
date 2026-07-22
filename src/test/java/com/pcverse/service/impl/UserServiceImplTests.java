@@ -1,7 +1,9 @@
 package com.pcverse.service.impl;
 
+import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
+import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
@@ -102,6 +104,26 @@ class UserServiceImplTests {
                                 .isEqualTo(ErrorCode.USER_SESSION_NOT_FOUND));
 
         verify(keycloakAdminService, never()).deleteUserSession("session-id");
+    }
+
+    @Test
+    void sendRequiredActionsEmailUsesKeycloakIdAndDefaultLifespan() {
+        User user = userWithKeycloakId();
+        SendRequiredActionsEmailRequest request =
+                new SendRequiredActionsEmailRequest(
+                        List.of(KeycloakRequiredAction.UPDATE_PASSWORD),
+                        null
+                );
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+
+        userService.sendRequiredActionsEmail("local-user-id", request);
+
+        verify(keycloakAdminService).sendRequiredActionsEmail(
+                "keycloak-user-id",
+                List.of(KeycloakRequiredAction.UPDATE_PASSWORD),
+                900
+        );
     }
 
     private User userWithKeycloakId() {

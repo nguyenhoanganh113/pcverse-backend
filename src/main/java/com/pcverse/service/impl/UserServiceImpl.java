@@ -2,6 +2,7 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
+import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -319,6 +320,21 @@ public class UserServiceImpl implements UserService {
         }
 
         keycloakAdminService.deleteUserSession(sessionId);
+    }
+
+    @Override
+    public void sendRequiredActionsEmail(
+            String userId,
+            SendRequiredActionsEmailRequest request
+    ) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        keycloakAdminService.sendRequiredActionsEmail(
+                requireKeycloakId(user),
+                request.actions(),
+                request.resolvedLifespanSeconds()
+        );
     }
 
     private User linkExistingUser(User user, String keycloakId, String username) {

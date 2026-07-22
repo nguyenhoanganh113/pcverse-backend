@@ -3,6 +3,7 @@ package com.pcverse.service;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.UserSessionResponse;
+import com.pcverse.enums.KeycloakRequiredAction;
 
 import java.util.List;
 
@@ -27,4 +28,10 @@ public interface KeycloakAdminService {
     List<UserSessionResponse> getUserSessions(String keycloakUserId);
 
     void deleteUserSession(String sessionId);
+
+    void sendRequiredActionsEmail(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions,
+            int lifespanSeconds
+    );
 }

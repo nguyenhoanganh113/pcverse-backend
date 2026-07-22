@@ -2,6 +2,7 @@ package com.pcverse.service;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
+import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -39,5 +40,10 @@ public interface UserService {
     List<UserSessionResponse> getUserSessions(String userId);
 
     void terminateUserSession(String userId, String sessionId);
+
+    void sendRequiredActionsEmail(
+            String userId,
+            SendRequiredActionsEmailRequest request
+    );
 
 }
