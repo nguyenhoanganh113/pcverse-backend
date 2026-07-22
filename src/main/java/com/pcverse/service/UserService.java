@@ -22,6 +22,8 @@ public interface UserService {
 
     List<UserDetailsResponse> getAllUsers();
 
+    UserDetailsResponse getUserById(String userId);
+
     UserDetailsResponse updateUserStatus(String userId, UserStatus status);
 
     UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request);

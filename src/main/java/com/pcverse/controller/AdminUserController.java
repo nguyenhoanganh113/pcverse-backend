@@ -39,6 +39,17 @@ public class AdminUserController {
                 .build();
     }
 
+    @GetMapping("/{userId}")
+    ApiResponse<UserDetailsResponse> getUserById(@PathVariable String userId) {
+        UserDetailsResponse data = userService.getUserById(userId);
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("User retrieved successfully")
+                .data(data)
+                .build();
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CreateUserResponse> createUser(@RequestBody @Valid CreateUserRequest request) {

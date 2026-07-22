@@ -105,6 +105,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public UserDetailsResponse getUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return userMapper.toUserDetailResponse(user);
+    }
+
+    @Override
     @Transactional
     public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
         User user = userRepository.findById(userId)

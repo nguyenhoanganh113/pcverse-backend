@@ -2,6 +2,7 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
+import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
 import com.pcverse.enums.KeycloakRequiredAction;
@@ -49,6 +50,34 @@ class UserServiceImplTests {
                 roleService,
                 keycloakAdminService
         );
+    }
+
+    @Test
+    void getUserByIdReturnsMappedLocalUser() {
+        User user = userWithKeycloakId();
+        UserDetailsResponse response = UserDetailsResponse.builder()
+                .id("local-user-id")
+                .username("test-user")
+                .roles(List.of("CUSTOMER"))
+                .build();
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+        when(userMapper.toUserDetailResponse(user)).thenReturn(response);
+
+        UserDetailsResponse result = userService.getUserById("local-user-id");
+
+        assertThat(result).isSameAs(response);
+        verify(userMapper).toUserDetailResponse(user);
+    }
+
+    @Test
+    void getUserByIdThrowsUserNotFoundWhenLocalUserDoesNotExist() {
+        when(userRepository.findById("missing-user-id")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getUserById("missing-user-id"))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.USER_NOT_FOUND));
     }
 
     @Test
