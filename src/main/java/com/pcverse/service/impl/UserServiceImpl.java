@@ -6,6 +6,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
@@ -305,6 +306,16 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return keycloakAdminService.getUserSessions(
+                requireKeycloakId(user)
+        );
+    }
+
+    @Override
+    public List<UserCredentialResponse> getUserCredentials(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return keycloakAdminService.getUserCredentials(
                 requireKeycloakId(user)
         );
     }

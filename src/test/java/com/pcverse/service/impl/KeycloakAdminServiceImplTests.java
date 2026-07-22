@@ -3,6 +3,7 @@ package com.pcverse.service.impl;
 import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.enums.Gender;
 import com.pcverse.enums.KeycloakRequiredAction;
@@ -213,6 +214,43 @@ class KeycloakAdminServiceImplTests {
             assertThat(response.rememberMe()).isTrue();
             assertThat(response.clients()).containsExactly("account", "pc-verse-client");
         });
+    }
+
+    @Test
+    void getUserCredentialsMapsOnlySafeCredentialMetadata() {
+        CredentialRepresentation password = new CredentialRepresentation();
+        password.setId("password-credential-id");
+        password.setType(CredentialRepresentation.PASSWORD);
+        password.setCreatedDate(1_720_000_000_000L);
+        password.setSecretData("must-not-be-exposed");
+        password.setCredentialData("must-not-be-exposed");
+
+        CredentialRepresentation otp = new CredentialRepresentation();
+        otp.setId("otp-credential-id");
+        otp.setType(CredentialRepresentation.TOTP);
+        otp.setUserLabel("Authenticator app");
+
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+        when(userResource.credentials()).thenReturn(List.of(password, otp));
+
+        List<UserCredentialResponse> result =
+                service.getUserCredentials("keycloak-user-id");
+
+        assertThat(result).containsExactly(
+                new UserCredentialResponse(
+                        "password-credential-id",
+                        "password",
+                        null,
+                        Instant.ofEpochMilli(1_720_000_000_000L)
+                ),
+                new UserCredentialResponse(
+                        "otp-credential-id",
+                        "totp",
+                        "Authenticator app",
+                        null
+                )
+        );
     }
 
     @Test

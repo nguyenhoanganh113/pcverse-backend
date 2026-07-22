@@ -2,6 +2,7 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
@@ -103,6 +104,27 @@ class UserServiceImplTests {
 
         assertThat(result).containsExactly(session);
         verify(keycloakAdminService).getUserSessions("keycloak-user-id");
+    }
+
+    @Test
+    void getUserCredentialsUsesKeycloakIdFromLocalUser() {
+        User user = userWithKeycloakId();
+        UserCredentialResponse credential = new UserCredentialResponse(
+                "credential-id",
+                "password",
+                null,
+                Instant.ofEpochMilli(1_720_000_000_000L)
+        );
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+        when(keycloakAdminService.getUserCredentials("keycloak-user-id"))
+                .thenReturn(List.of(credential));
+
+        List<UserCredentialResponse> result =
+                userService.getUserCredentials("local-user-id");
+
+        assertThat(result).containsExactly(credential);
+        verify(keycloakAdminService).getUserCredentials("keycloak-user-id");
     }
 
     @Test

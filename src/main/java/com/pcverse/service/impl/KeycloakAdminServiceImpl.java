@@ -3,6 +3,7 @@ package com.pcverse.service.impl;
 import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
@@ -410,6 +411,60 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         } catch (RuntimeException exception) {
             log.error(
                     "Unexpected error while getting sessions for user {} from Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public List<UserCredentialResponse> getUserCredentials(String keycloakUserId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            return realmResource.users()
+                    .get(keycloakUserId)
+                    .credentials()
+                    .stream()
+                    .map(credential -> new UserCredentialResponse(
+                            credential.getId(),
+                            credential.getType(),
+                            credential.getUserLabel(),
+                            credential.getCreatedDate() == null
+                                    ? null
+                                    : Instant.ofEpochMilli(credential.getCreatedDate())
+                    ))
+                    .toList();
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected getting credentials for user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while getting credentials for user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while getting credentials for user {} from Keycloak",
                     keycloakUserId,
                     exception
             );

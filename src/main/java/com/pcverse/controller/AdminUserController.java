@@ -9,6 +9,7 @@ import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.service.UserService;
@@ -156,6 +157,17 @@ public class AdminUserController {
         return ApiResponse.<List<UserSessionResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("User sessions retrieved successfully")
+                .data(data)
+                .build();
+    }
+
+    @GetMapping("/{userId}/credentials")
+    ApiResponse<List<UserCredentialResponse>> getUserCredentials(@PathVariable String userId) {
+        List<UserCredentialResponse> data = userService.getUserCredentials(userId);
+
+        return ApiResponse.<List<UserCredentialResponse>>builder()
+                .code(HttpStatus.OK.value())
+                .message("User credentials retrieved successfully")
                 .data(data)
                 .build();
     }

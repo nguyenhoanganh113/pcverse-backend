@@ -6,6 +6,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
@@ -41,6 +42,8 @@ public interface UserService {
     void logoutUser(String userId);
 
     List<UserSessionResponse> getUserSessions(String userId);
+
+    List<UserCredentialResponse> getUserCredentials(String userId);
 
     void terminateUserSession(String userId, String sessionId);
 
