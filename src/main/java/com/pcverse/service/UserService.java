@@ -5,6 +5,7 @@ import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
 import com.pcverse.enums.UserStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -34,5 +35,9 @@ public interface UserService {
     UserDetailsResponse removeRole(String userId, String roleName);
 
     void logoutUser(String userId);
+
+    List<UserSessionResponse> getUserSessions(String userId);
+
+    void terminateUserSession(String userId, String sessionId);
 
 }

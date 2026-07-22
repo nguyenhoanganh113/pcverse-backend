@@ -5,6 +5,7 @@ import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
@@ -281,6 +282,43 @@ public class UserServiceImpl implements UserService {
         keycloakAdminService.logoutUser(
                 requireKeycloakId(user)
         );
+    }
+
+    @Override
+    public List<UserSessionResponse> getUserSessions(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return keycloakAdminService.getUserSessions(
+                requireKeycloakId(user)
+        );
+    }
+
+    @Override
+    public void terminateUserSession(String userId, String sessionId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean targetIsAdmin = user.getUserHasRoles().stream()
+                .anyMatch(userRole ->
+                        "ADMIN".equalsIgnoreCase(
+                                userRole.getRole().getRoleName()
+                        )
+                );
+        if (targetIsAdmin) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        String keycloakId = requireKeycloakId(user);
+        boolean sessionBelongsToUser = keycloakAdminService.getUserSessions(keycloakId)
+                .stream()
+                .anyMatch(session -> sessionId.equals(session.sessionId()));
+
+        if (!sessionBelongsToUser) {
+            throw new AppException(ErrorCode.USER_SESSION_NOT_FOUND);
+        }
+
+        keycloakAdminService.deleteUserSession(sessionId);
     }
 
     private User linkExistingUser(User user, String keycloakId, String username) {

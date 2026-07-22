@@ -2,6 +2,9 @@ package com.pcverse.service;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
+
+import java.util.List;
 
 public interface KeycloakAdminService {
 
@@ -20,4 +23,8 @@ public interface KeycloakAdminService {
     void removeClientRole(String keycloakUserId, String roleName);
 
     void logoutUser(String keycloakUserId);
+
+    List<UserSessionResponse> getUserSessions(String keycloakUserId);
+
+    void deleteUserSession(String sessionId);
 }

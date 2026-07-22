@@ -3,9 +3,11 @@ package com.pcverse.service.impl;
 import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.enums.Gender;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,17 +26,21 @@ import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.representations.idm.UserSessionRepresentation;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
 import java.net.URI;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -177,6 +183,54 @@ class KeycloakAdminServiceImplTests {
                 assignedRoles.size() == 1
                         && "CUSTOMER".equals(assignedRoles.get(0).getName())
         ));
+    }
+
+    @Test
+    void getUserSessionsMapsKeycloakRepresentationToResponse() {
+        UserSessionRepresentation session = new UserSessionRepresentation();
+        session.setId("session-id");
+        session.setIpAddress("127.0.0.1");
+        session.setStart(1_720_000_000_000L);
+        session.setLastAccess(1_720_000_300_000L);
+        session.setRememberMe(true);
+        session.setClients(Map.of(
+                "client-uuid-2", "pc-verse-client",
+                "client-uuid-1", "account"
+        ));
+
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+        when(userResource.getUserSessions()).thenReturn(List.of(session));
+
+        List<UserSessionResponse> result = service.getUserSessions("keycloak-user-id");
+
+        assertThat(result).singleElement().satisfies(response -> {
+            assertThat(response.sessionId()).isEqualTo("session-id");
+            assertThat(response.ipAddress()).isEqualTo("127.0.0.1");
+            assertThat(response.startedAt()).isEqualTo(Instant.ofEpochMilli(1_720_000_000_000L));
+            assertThat(response.lastAccessAt()).isEqualTo(Instant.ofEpochMilli(1_720_000_300_000L));
+            assertThat(response.rememberMe()).isTrue();
+            assertThat(response.clients()).containsExactly("account", "pc-verse-client");
+        });
+    }
+
+    @Test
+    void deleteUserSessionDeletesOnlineSession() {
+        service.deleteUserSession("session-id");
+
+        verify(realm).deleteSession("session-id", false);
+    }
+
+    @Test
+    void deleteUserSessionMapsKeycloakNotFoundToUserSessionNotFound() {
+        doThrow(new NotFoundException())
+                .when(realm)
+                .deleteSession("missing-session-id", false);
+
+        assertThatThrownBy(() -> service.deleteUserSession("missing-session-id"))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.USER_SESSION_NOT_FOUND));
     }
 
     private void prepareRoleAssignment(String userId, String roleName) {

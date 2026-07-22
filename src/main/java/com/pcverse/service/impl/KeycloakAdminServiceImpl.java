@@ -3,6 +3,7 @@ package com.pcverse.service.impl;
 import com.pcverse.configuration.KeycloakAdminProperties;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.service.KeycloakAdminService;
@@ -20,8 +21,10 @@ import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.representations.idm.UserSessionRepresentation;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -352,6 +355,113 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             throw new AppException(
                     ErrorCode.KEYCLOAK_ADMIN_API_ERROR
             );
+        }
+    }
+
+    @Override
+    public List<UserSessionResponse> getUserSessions(String keycloakUserId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            List<UserSessionRepresentation> sessions = realmResource.users()
+                    .get(keycloakUserId)
+                    .getUserSessions();
+
+            return sessions.stream()
+                    .map(session -> new UserSessionResponse(
+                            session.getId(),
+                            session.getIpAddress(),
+                            Instant.ofEpochMilli(session.getStart()),
+                            Instant.ofEpochMilli(session.getLastAccess()),
+                            session.isRememberMe(),
+                            session.getClients() == null
+                                    ? List.of()
+                                    : session.getClients().values().stream()
+                                            .sorted()
+                                            .toList()
+                    ))
+                    .toList();
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected getting sessions for user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while getting sessions for user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while getting sessions for user {} from Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public void deleteUserSession(String sessionId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            // DELETE /admin/realms/{realm}/sessions/{session}?isOffline=false
+            realmResource.deleteSession(sessionId, false);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.NOT_FOUND.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_SESSION_NOT_FOUND);
+            }
+
+            log.error(
+                    "Keycloak rejected deleting user session {} with status {}",
+                    sessionId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while deleting user session {}",
+                    sessionId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while deleting user session {} from Keycloak",
+                    sessionId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
     }
 

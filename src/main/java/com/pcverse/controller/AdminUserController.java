@@ -6,12 +6,15 @@ import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -80,6 +83,30 @@ public class AdminUserController {
         return ApiResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .message("User logged out successfully")
+                .build();
+    }
+
+    @GetMapping("/{userId}/sessions")
+    ApiResponse<List<UserSessionResponse>> getUserSessions(@PathVariable String userId) {
+        List<UserSessionResponse> data = userService.getUserSessions(userId);
+
+        return ApiResponse.<List<UserSessionResponse>>builder()
+                .code(HttpStatus.OK.value())
+                .message("User sessions retrieved successfully")
+                .data(data)
+                .build();
+    }
+
+    @DeleteMapping("/{userId}/sessions/{sessionId}")
+    ApiResponse<Void> terminateUserSession(
+            @PathVariable String userId,
+            @PathVariable String sessionId
+    ) {
+        userService.terminateUserSession(userId, sessionId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User session terminated successfully")
                 .build();
     }
 
