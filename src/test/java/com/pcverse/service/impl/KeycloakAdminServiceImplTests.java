@@ -255,6 +255,42 @@ class KeycloakAdminServiceImplTests {
         );
     }
 
+    @Test
+    void updateRequiredActionsReplacesActionsAndRemovesDuplicates() {
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+
+        service.updateRequiredActions(
+                "keycloak-user-id",
+                List.of(
+                        KeycloakRequiredAction.UPDATE_PASSWORD,
+                        KeycloakRequiredAction.CONFIGURE_TOTP,
+                        KeycloakRequiredAction.UPDATE_PASSWORD
+                )
+        );
+
+        ArgumentCaptor<UserRepresentation> userCaptor =
+                ArgumentCaptor.forClass(UserRepresentation.class);
+        verify(userResource).update(userCaptor.capture());
+
+        assertThat(userCaptor.getValue().getRequiredActions())
+                .containsExactly("UPDATE_PASSWORD", "CONFIGURE_TOTP");
+    }
+
+    @Test
+    void updateRequiredActionsAcceptsEmptyListToClearActions() {
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+
+        service.updateRequiredActions("keycloak-user-id", List.of());
+
+        ArgumentCaptor<UserRepresentation> userCaptor =
+                ArgumentCaptor.forClass(UserRepresentation.class);
+        verify(userResource).update(userCaptor.capture());
+
+        assertThat(userCaptor.getValue().getRequiredActions()).isEmpty();
+    }
+
     private void prepareRoleAssignment(String userId, String roleName) {
         ClientRepresentation client = new ClientRepresentation();
         client.setId("resource-client-uuid");

@@ -34,4 +34,9 @@ public interface KeycloakAdminService {
             List<KeycloakRequiredAction> actions,
             int lifespanSeconds
     );
+
+    void updateRequiredActions(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions
+    );
 }

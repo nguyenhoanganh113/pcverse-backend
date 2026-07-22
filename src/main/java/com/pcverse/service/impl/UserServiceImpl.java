@@ -4,6 +4,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
@@ -338,6 +339,20 @@ public class UserServiceImpl implements UserService {
                 requireKeycloakId(user),
                 request.actions(),
                 request.resolvedLifespanSeconds()
+        );
+    }
+
+    @Override
+    public void updateRequiredActions(
+            String userId,
+            UpdateUserRequiredActionsRequest request
+    ) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        keycloakAdminService.updateRequiredActions(
+                requireKeycloakId(user),
+                request.actions()
         );
     }
 

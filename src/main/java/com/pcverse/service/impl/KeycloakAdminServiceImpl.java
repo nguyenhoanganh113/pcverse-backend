@@ -520,6 +520,62 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
+    @Override
+    public void updateRequiredActions(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions
+    ) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            List<String> actionNames = actions.stream()
+                    .map(KeycloakRequiredAction::name)
+                    .distinct()
+                    .toList();
+
+            UserRepresentation userRepresentation = new UserRepresentation();
+            userRepresentation.setRequiredActions(actionNames);
+
+            // PUT /admin/realms/{realm}/users/{user-id}
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .update(userRepresentation);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected updating required actions for user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while updating required actions for user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while updating required actions for user {} in Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
     private RealmResource realm() {
         return keycloak.realm(keycloakAdminProperties.realm());
     }

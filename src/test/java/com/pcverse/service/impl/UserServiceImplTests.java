@@ -1,6 +1,7 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
+import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
 import com.pcverse.enums.KeycloakRequiredAction;
@@ -123,6 +124,30 @@ class UserServiceImplTests {
                 "keycloak-user-id",
                 List.of(KeycloakRequiredAction.UPDATE_PASSWORD),
                 900
+        );
+    }
+
+    @Test
+    void updateRequiredActionsUsesKeycloakIdFromLocalUser() {
+        User user = userWithKeycloakId();
+        UpdateUserRequiredActionsRequest request =
+                new UpdateUserRequiredActionsRequest(
+                        List.of(
+                                KeycloakRequiredAction.UPDATE_PASSWORD,
+                                KeycloakRequiredAction.CONFIGURE_TOTP
+                        )
+                );
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+
+        userService.updateRequiredActions("local-user-id", request);
+
+        verify(keycloakAdminService).updateRequiredActions(
+                "keycloak-user-id",
+                List.of(
+                        KeycloakRequiredAction.UPDATE_PASSWORD,
+                        KeycloakRequiredAction.CONFIGURE_TOTP
+                )
         );
     }
 

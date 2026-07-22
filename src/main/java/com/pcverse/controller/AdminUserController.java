@@ -5,6 +5,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
@@ -171,6 +172,19 @@ public class AdminUserController {
         return ApiResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .message("Required-actions email sent successfully")
+                .build();
+    }
+
+    @PutMapping("/{userId}/required-actions")
+    ApiResponse<Void> updateRequiredActions(
+            @PathVariable String userId,
+            @RequestBody @Valid UpdateUserRequiredActionsRequest request
+    ) {
+        userService.updateRequiredActions(userId, request);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User required actions updated successfully")
                 .build();
     }
 

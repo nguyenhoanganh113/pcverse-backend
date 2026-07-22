@@ -4,6 +4,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
@@ -44,6 +45,11 @@ public interface UserService {
     void sendRequiredActionsEmail(
             String userId,
             SendRequiredActionsEmailRequest request
+    );
+
+    void updateRequiredActions(
+            String userId,
+            UpdateUserRequiredActionsRequest request
     );
 
 }
