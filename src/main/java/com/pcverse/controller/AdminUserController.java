@@ -73,4 +73,14 @@ public class AdminUserController {
                 .build();
     }
 
+    @PostMapping("/{userId}/logout")
+    ApiResponse<Void> logoutUser(@PathVariable String userId) {
+        userService.logoutUser(userId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User logged out successfully")
+                .build();
+    }
+
 }

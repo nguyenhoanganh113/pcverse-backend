@@ -305,6 +305,56 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         }
     }
 
+    @Override
+    public void logoutUser(String keycloakUserId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            UserResource userResource = realmResource.users()
+                    .get(keycloakUserId);
+
+            // POST /admin/realms/{realm}/users/{user-id}/logout
+            // Xóa toàn bộ session và vô hiệu khả năng refresh token của user.
+            userResource.logout();
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected logging out user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while logging out user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        } catch (RuntimeException exception) {log.error(
+                "Unexpected error while logging out user {} from Keycloak",
+                keycloakUserId,
+                exception
+        );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        }
+    }
+
     private RealmResource realm() {
         return keycloak.realm(keycloakAdminProperties.realm());
     }

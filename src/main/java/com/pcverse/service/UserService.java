@@ -33,4 +33,6 @@ public interface UserService {
 
     UserDetailsResponse removeRole(String userId, String roleName);
 
+    void logoutUser(String userId);
+
 }

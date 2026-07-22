@@ -263,6 +263,26 @@ public class UserServiceImpl implements UserService {
 
     }
 
+    @Override
+    public void logoutUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean targetIsAdmin = user.getUserHasRoles().stream()
+                .anyMatch(userRole ->
+                        "ADMIN".equalsIgnoreCase(
+                                userRole.getRole().getRoleName()
+                        )
+                );
+        if (targetIsAdmin) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        keycloakAdminService.logoutUser(
+                requireKeycloakId(user)
+        );
+    }
+
     private User linkExistingUser(User user, String keycloakId, String username) {
 
         // User này đã link với keycloakId khác trong keycloak database

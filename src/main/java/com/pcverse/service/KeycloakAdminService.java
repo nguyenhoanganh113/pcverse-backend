@@ -18,4 +18,6 @@ public interface KeycloakAdminService {
     void assignClientRole(String keycloakUserId, String roleName);
 
     void removeClientRole(String keycloakUserId, String roleName);
+
+    void logoutUser(String keycloakUserId);
 }
