@@ -106,7 +106,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         String keycloakId = requireKeycloakId(user);
 
         boolean enabled = switch (status) {
@@ -127,7 +128,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
             throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
@@ -162,7 +164,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(String userId) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         keycloakAdminService.deleteUser(requireKeycloakId(user));
         userRepository.delete(user);
         userRepository.flush();
@@ -170,7 +173,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void resetPassword(String userId, ResetUserPasswordRequest request) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         keycloakAdminService.resetPassword(
                 requireKeycloakId(user),
                 request.newPassword(),
@@ -378,11 +382,6 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private User findUser(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-    }
-
     private String requireKeycloakId(User user) {
         if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
             throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
@@ -396,19 +395,4 @@ public class UserServiceImpl implements UserService {
         }
         return claims.strip();
     }
-
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.strip();
-            }
-        }
-        return "";
-    }
-
-    private String usernameFromEmail(String email) {
-        int separatorIndex = email.indexOf('@');
-        return separatorIndex > 0 ? email.substring(0, separatorIndex) : email;
-    }
-
 }

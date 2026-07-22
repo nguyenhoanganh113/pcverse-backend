@@ -2,8 +2,10 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.AssignUserRoleRequest;
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -24,6 +26,17 @@ import java.util.List;
 public class AdminUserController {
 
     private final UserService userService;
+
+    @GetMapping
+    ApiResponse<List<UserDetailsResponse>> getAllUsers() {
+        List<UserDetailsResponse> users = userService.getAllUsers();
+
+        return ApiResponse.<List<UserDetailsResponse>>builder()
+                .code(HttpStatus.OK.value())
+                .message("Get all users successfully")
+                .data(users)
+                .build();
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -62,6 +75,43 @@ public class AdminUserController {
                 .code(HttpStatus.OK.value())
                 .message("User updated successfully")
                 .data(data)
+                .build();
+    }
+
+    @PatchMapping("/{userId}/status")
+    ApiResponse<UserDetailsResponse> updateUserStatus(
+            @PathVariable String userId,
+            @RequestBody @Valid UpdateUserStatusRequest request
+    ) {
+        UserDetailsResponse data = userService.updateUserStatus(userId, request.status());
+
+        return ApiResponse.<UserDetailsResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("User status updated successfully")
+                .data(data)
+                .build();
+    }
+
+    @DeleteMapping("/{userId}")
+    ApiResponse<Void> deleteUser(@PathVariable String userId) {
+        userService.deleteUser(userId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User deleted successfully")
+                .build();
+    }
+
+    @PutMapping("/{userId}/password")
+    ApiResponse<Void> resetPassword(
+            @PathVariable String userId,
+            @RequestBody @Valid ResetUserPasswordRequest request
+    ) {
+        userService.resetPassword(userId, request);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("Password reset successfully")
                 .build();
     }
 

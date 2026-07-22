@@ -1,9 +1,7 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateUserRequest;
-import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
-import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -15,8 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -47,35 +43,6 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<List<UserDetailsResponse>> getAllUsers() {
-
-        List<UserDetailsResponse> users = userService.getAllUsers();
-
-        return ApiResponse.<List<UserDetailsResponse>>builder()
-                .code(HttpStatus.OK.value())
-                .message("Get all users successfully")
-                .data(users)
-                .build();
-
-    }
-
-    @PatchMapping("/{userId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<UserDetailsResponse> updateUserStatus(
-            @PathVariable String userId,
-            @RequestBody @Valid UpdateUserStatusRequest request
-    ) {
-        UserDetailsResponse data = userService.updateUserStatus(userId, request.status());
-
-        return ApiResponse.<UserDetailsResponse>builder()
-                .code(HttpStatus.OK.value())
-                .message("User status updated successfully")
-                .data(data)
-                .build();
-    }
-
     @PutMapping("/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     ApiResponse<UserDetailsResponse> updateUser(
@@ -88,31 +55,6 @@ public class UserController {
                 .code(HttpStatus.OK.value())
                 .message("User updated successfully")
                 .data(data)
-                .build();
-    }
-
-    @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<Void> deleteUser(@PathVariable String userId) {
-        userService.deleteUser(userId);
-
-        return ApiResponse.<Void>builder()
-                .code(HttpStatus.OK.value())
-                .message("User deleted successfully")
-                .build();
-    }
-
-    @PutMapping("/{userId}/password")
-    @PreAuthorize("hasRole('ADMIN')")
-    ApiResponse<Void> resetPassword(
-            @PathVariable String userId,
-            @RequestBody @Valid ResetUserPasswordRequest request
-    ) {
-        userService.resetPassword(userId, request);
-
-        return ApiResponse.<Void>builder()
-                .code(HttpStatus.OK.value())
-                .message("Password reset successfully")
                 .build();
     }
 
