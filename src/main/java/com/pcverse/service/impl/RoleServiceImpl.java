@@ -1,6 +1,8 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.entity.Role;
+import com.pcverse.exception.AppException;
+import com.pcverse.exception.ErrorCode;
 import com.pcverse.repository.RoleRepository;
 import com.pcverse.service.RoleService;
 import lombok.RequiredArgsConstructor;
@@ -20,5 +22,11 @@ public class RoleServiceImpl implements RoleService {
                                 .roleName(roleName)
                                 .build()
                 ));
+    }
+
+    @Override
+    public Role getRoleByName(String roleName) {
+        return roleRepository.findByRoleName(roleName)
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
     }
 }

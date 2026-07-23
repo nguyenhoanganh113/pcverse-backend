@@ -9,6 +9,7 @@ import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
+import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
@@ -64,7 +65,12 @@ public class UserServiceImpl implements UserService {
         user.setUserStatus(UserStatus.ACTIVE);
 
         String keycloakUserId = keycloakAdminService.createUser(request);
+
+        Role customerRole = roleService.getRoleByName("CUSTOMER");
+        keycloakAdminService.assignClientRole(keycloakUserId, "CUSTOMER");
+
         user.setKeycloakId(keycloakUserId);
+        user.addRole(customerRole);
 
         try {
             userRepository.saveAndFlush(user);

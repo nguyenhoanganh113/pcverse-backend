@@ -28,7 +28,8 @@ public enum ErrorCode {
             400,
             "Only OTP and WebAuthn credentials can be deleted",
             HttpStatus.BAD_REQUEST
-    );
+    ),
+    ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),;
 
     private final int code;
     private final String message;
