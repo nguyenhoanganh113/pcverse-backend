@@ -45,6 +45,8 @@ public interface UserService {
 
     List<UserCredentialResponse> getUserCredentials(String userId);
 
+    void deleteUserCredential(String userId, String credentialId);
+
     void terminateUserSession(String userId, String sessionId);
 
     void sendRequiredActionsEmail(

@@ -321,6 +321,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void deleteUserCredential(String userId, String credentialId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String keycloakId = requireKeycloakId(user);
+        boolean credentialBelongsToUser = keycloakAdminService
+                .getUserCredentials(keycloakId)
+                .stream()
+                .anyMatch(credential ->
+                        credentialId.equals(credential.credentialId())
+                );
+
+        if (!credentialBelongsToUser) {
+            throw new AppException(ErrorCode.USER_CREDENTIAL_NOT_FOUND);
+        }
+
+        keycloakAdminService.deleteUserCredential(keycloakId, credentialId);
+    }
+
+    @Override
     public void terminateUserSession(String userId, String sessionId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));

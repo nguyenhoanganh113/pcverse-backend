@@ -474,6 +474,62 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
+    public void deleteUserCredential(
+            String keycloakUserId,
+            String credentialId
+    ) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            // DELETE /admin/realms/{realm}/users/{user-id}/credentials/{credential-id}
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .removeCredential(credentialId);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.NOT_FOUND.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_CREDENTIAL_NOT_FOUND);
+            }
+
+            log.error(
+                    "Keycloak rejected deleting credential {} for user {} with status {}",
+                    credentialId,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while deleting credential {} for user {}",
+                    credentialId,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while deleting credential {} for user {} from Keycloak",
+                    credentialId,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
     public void deleteUserSession(String sessionId) {
         try {
             RealmResource realmResource =

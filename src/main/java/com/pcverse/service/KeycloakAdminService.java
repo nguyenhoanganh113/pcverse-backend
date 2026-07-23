@@ -30,6 +30,8 @@ public interface KeycloakAdminService {
 
     List<UserCredentialResponse> getUserCredentials(String keycloakUserId);
 
+    void deleteUserCredential(String keycloakUserId, String credentialId);
+
     void deleteUserSession(String sessionId);
 
     void sendRequiredActionsEmail(

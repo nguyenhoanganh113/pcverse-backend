@@ -172,6 +172,19 @@ public class AdminUserController {
                 .build();
     }
 
+    @DeleteMapping("/{userId}/credentials/{credentialId}")
+    ApiResponse<Void> deleteUserCredential(
+            @PathVariable String userId,
+            @PathVariable String credentialId
+    ) {
+        userService.deleteUserCredential(userId, credentialId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("User credential deleted successfully")
+                .build();
+    }
+
     @DeleteMapping("/{userId}/sessions/{sessionId}")
     ApiResponse<Void> terminateUserSession(
             @PathVariable String userId,

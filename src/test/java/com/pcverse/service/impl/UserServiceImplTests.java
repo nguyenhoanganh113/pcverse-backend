@@ -128,6 +128,48 @@ class UserServiceImplTests {
     }
 
     @Test
+    void deleteUserCredentialDeletesCredentialOwnedByTargetUser() {
+        User user = userWithKeycloakId();
+        UserCredentialResponse credential = new UserCredentialResponse(
+                "credential-id",
+                "otp",
+                "Authenticator app",
+                null
+        );
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+        when(keycloakAdminService.getUserCredentials("keycloak-user-id"))
+                .thenReturn(List.of(credential));
+
+        userService.deleteUserCredential("local-user-id", "credential-id");
+
+        verify(keycloakAdminService).deleteUserCredential(
+                "keycloak-user-id",
+                "credential-id"
+        );
+    }
+
+    @Test
+    void deleteUserCredentialRejectsCredentialOwnedByAnotherUser() {
+        User user = userWithKeycloakId();
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+        when(keycloakAdminService.getUserCredentials("keycloak-user-id"))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() ->
+                userService.deleteUserCredential("local-user-id", "credential-id"))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.USER_CREDENTIAL_NOT_FOUND));
+
+        verify(keycloakAdminService, never()).deleteUserCredential(
+                "keycloak-user-id",
+                "credential-id"
+        );
+    }
+
+    @Test
     void terminateUserSessionDeletesSessionOwnedByTargetUser() {
         User user = userWithKeycloakId();
         UserSessionResponse session = sessionResponse("session-id");

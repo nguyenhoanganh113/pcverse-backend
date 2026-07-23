@@ -22,7 +22,8 @@ public enum ErrorCode {
     FORBIDDEN(403, "Không có quyền truy cập", HttpStatus.FORBIDDEN),
     MISSING_LOGOUT_INFO(400, "Authorization header or refresh token is missing", HttpStatus.BAD_REQUEST),
     USER_ROLE_NOT_ASSIGNED(404,"Role is not assigned to this user", HttpStatus.NOT_FOUND),
-    USER_SESSION_NOT_FOUND(404, "User session not found", HttpStatus.NOT_FOUND);
+    USER_SESSION_NOT_FOUND(404, "User session not found", HttpStatus.NOT_FOUND),
+    USER_CREDENTIAL_NOT_FOUND(404, "User credential not found", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;

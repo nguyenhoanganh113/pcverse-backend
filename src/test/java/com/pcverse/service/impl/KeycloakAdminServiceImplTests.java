@@ -254,6 +254,34 @@ class KeycloakAdminServiceImplTests {
     }
 
     @Test
+    void deleteUserCredentialRemovesCredentialFromTargetUser() {
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+
+        service.deleteUserCredential("keycloak-user-id", "credential-id");
+
+        verify(userResource).removeCredential("credential-id");
+    }
+
+    @Test
+    void deleteUserCredentialMapsKeycloakNotFoundToUserCredentialNotFound() {
+        when(realm.users()).thenReturn(users);
+        when(users.get("keycloak-user-id")).thenReturn(userResource);
+        doThrow(new NotFoundException())
+                .when(userResource)
+                .removeCredential("missing-credential-id");
+
+        assertThatThrownBy(() ->
+                service.deleteUserCredential(
+                        "keycloak-user-id",
+                        "missing-credential-id"
+                ))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.USER_CREDENTIAL_NOT_FOUND));
+    }
+
+    @Test
     void deleteUserSessionDeletesOnlineSession() {
         service.deleteUserSession("session-id");
 
