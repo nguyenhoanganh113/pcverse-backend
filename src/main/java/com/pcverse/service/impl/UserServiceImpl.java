@@ -29,11 +29,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceImpl implements UserService {
+
+    private static final Set<String> DELETABLE_CREDENTIAL_TYPES = Set.of(
+            "otp",
+            "webauthn",
+            "webauthn-passwordless"
+    );
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
@@ -52,7 +59,7 @@ public class UserServiceImpl implements UserService {
 
         }
 
-        // Convert DTO sang Entity (bỏ qua password)
+        // Credentials are managed by Keycloak and are not stored in the local user.
         User user = userMapper.toUser(request);
         user.setUserStatus(UserStatus.ACTIVE);
 
@@ -326,15 +333,22 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String keycloakId = requireKeycloakId(user);
-        boolean credentialBelongsToUser = keycloakAdminService
+        UserCredentialResponse credential = keycloakAdminService
                 .getUserCredentials(keycloakId)
                 .stream()
-                .anyMatch(credential ->
-                        credentialId.equals(credential.credentialId())
+                .filter(item -> credentialId.equals(item.credentialId()))
+                .findFirst()
+                .orElseThrow(() ->
+                        new AppException(ErrorCode.USER_CREDENTIAL_NOT_FOUND)
                 );
 
-        if (!credentialBelongsToUser) {
-            throw new AppException(ErrorCode.USER_CREDENTIAL_NOT_FOUND);
+        if (credential.type() == null
+                || !DELETABLE_CREDENTIAL_TYPES.contains(
+                        credential.type().toLowerCase(Locale.ROOT)
+                )) {
+            throw new AppException(
+                    ErrorCode.USER_CREDENTIAL_DELETE_NOT_ALLOWED
+            );
         }
 
         keycloakAdminService.deleteUserCredential(keycloakId, credentialId);

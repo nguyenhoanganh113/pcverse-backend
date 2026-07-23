@@ -56,13 +56,27 @@ Content-Type: application/json
 {
   "username": "new-user",
   "email": "new-user@pcverse.com",
-  "password": "Password@123",
   "firstName": "PCVerse",
   "lastName": "User",
   "phoneNumber": "0900000000",
   "gender": "MALE",
   "dateOfBirth": "1990-01-01",
   "urlAvatar": null
+}
+```
+
+The response contains the local user `id` and `email`. The user is enabled but has no password,
+and the email is initially unverified. Send the invitation separately so the operation can be
+retried if email delivery fails:
+
+```http
+POST http://localhost:8083/api/v1/admin/users/{userId}/required-actions-email
+Authorization: Bearer <admin-user-access-token>
+Content-Type: application/json
+
+{
+  "actions": ["VERIFY_EMAIL", "UPDATE_PASSWORD"],
+  "lifespanSeconds": 43200
 }
 ```
 
@@ -73,8 +87,19 @@ All administration endpoints require a JWT containing the `ADMIN` client role:
 
 | Method | Endpoint | Operation |
 | --- | --- | --- |
-| `PUT` | `/api/v1/users/{userId}` | Update the user in Keycloak and the database |
-| `DELETE` | `/api/v1/users/{userId}` | Delete the user from Keycloak and the database |
-| `PUT` | `/api/v1/users/{userId}/password` | Reset the Keycloak password |
+| `GET` | `/api/v1/admin/users` | List local users |
+| `GET` | `/api/v1/admin/users/{userId}` | Get a local user |
+| `POST` | `/api/v1/admin/users` | Create the Keycloak identity and local profile |
+| `PUT` | `/api/v1/admin/users/{userId}` | Update the user in Keycloak and the database |
+| `DELETE` | `/api/v1/admin/users/{userId}` | Delete the user from Keycloak and the database |
+| `PUT` | `/api/v1/admin/users/{userId}/password` | Reset the Keycloak password |
 | `POST` | `/api/v1/admin/users/{userId}/roles` | Assign a client role in Keycloak and the database |
-| `PATCH` | `/api/v1/users/{userId}/status` | Enable or disable the Keycloak user |
+| `DELETE` | `/api/v1/admin/users/{userId}/roles/{roleName}` | Remove a client role |
+| `PATCH` | `/api/v1/admin/users/{userId}/status` | Enable or disable the Keycloak user |
+| `POST` | `/api/v1/admin/users/{userId}/logout` | Terminate all Keycloak sessions |
+| `GET` | `/api/v1/admin/users/{userId}/sessions` | List Keycloak sessions |
+| `DELETE` | `/api/v1/admin/users/{userId}/sessions/{sessionId}` | Terminate one Keycloak session |
+| `GET` | `/api/v1/admin/users/{userId}/credentials` | List safe credential metadata |
+| `DELETE` | `/api/v1/admin/users/{userId}/credentials/{credentialId}` | Delete an OTP or WebAuthn credential |
+| `POST` | `/api/v1/admin/users/{userId}/required-actions-email` | Email one or more required actions |
+| `PUT` | `/api/v1/admin/users/{userId}/required-actions` | Replace the user's pending required actions |

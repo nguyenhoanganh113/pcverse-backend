@@ -45,13 +45,11 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         userRepresentation.setFirstName(request.firstName());
         userRepresentation.setLastName(request.lastName());
         userRepresentation.setEnabled(true);
-        userRepresentation.setEmailVerified(true);
-
-        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
-        credentialRepresentation.setValue(request.password());
-        credentialRepresentation.setTemporary(false);
-        userRepresentation.setCredentials(List.of(credentialRepresentation));
+        userRepresentation.setEmailVerified(false);
+        userRepresentation.setRequiredActions(List.of(
+                KeycloakRequiredAction.VERIFY_EMAIL.providerId(),
+                KeycloakRequiredAction.UPDATE_PASSWORD.providerId()
+        ));
 
         try (Response response = keycloak
                 .realm(keycloakAdminProperties.realm())
@@ -588,7 +586,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     keycloak.realm(keycloakAdminProperties.realm());
 
             List<String> actionNames = actions.stream()
-                    .map(KeycloakRequiredAction::name)
+                    .map(KeycloakRequiredAction::providerId)
                     .distinct()
                     .toList();
 
@@ -641,7 +639,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     keycloak.realm(keycloakAdminProperties.realm());
 
             List<String> actionNames = actions.stream()
-                    .map(KeycloakRequiredAction::name)
+                    .map(KeycloakRequiredAction::providerId)
                     .distinct()
                     .toList();
 

@@ -170,6 +170,37 @@ class UserServiceImplTests {
     }
 
     @Test
+    void deleteUserCredentialRejectsPasswordCredential() {
+        User user = userWithKeycloakId();
+        UserCredentialResponse credential = new UserCredentialResponse(
+                "password-credential-id",
+                "password",
+                null,
+                null
+        );
+
+        when(userRepository.findById("local-user-id")).thenReturn(Optional.of(user));
+        when(keycloakAdminService.getUserCredentials("keycloak-user-id"))
+                .thenReturn(List.of(credential));
+
+        assertThatThrownBy(() ->
+                userService.deleteUserCredential(
+                        "local-user-id",
+                        "password-credential-id"
+                ))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(
+                                        ErrorCode.USER_CREDENTIAL_DELETE_NOT_ALLOWED
+                                ));
+
+        verify(keycloakAdminService, never()).deleteUserCredential(
+                "keycloak-user-id",
+                "password-credential-id"
+        );
+    }
+
+    @Test
     void terminateUserSessionDeletesSessionOwnedByTargetUser() {
         User user = userWithKeycloakId();
         UserSessionResponse session = sessionResponse("session-id");

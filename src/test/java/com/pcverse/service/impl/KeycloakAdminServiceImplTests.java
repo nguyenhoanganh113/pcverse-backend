@@ -110,12 +110,13 @@ class KeycloakAdminServiceImplTests {
         assertThat(createdUser.getUsername()).isEqualTo("new-user");
         assertThat(createdUser.getEmail()).isEqualTo("new-user@pcverse.com");
         assertThat(createdUser.isEnabled()).isTrue();
-        assertThat(createdUser.isEmailVerified()).isTrue();
-        assertThat(createdUser.getCredentials()).singleElement().satisfies(credential -> {
-            assertThat(credential.getType()).isEqualTo(CredentialRepresentation.PASSWORD);
-            assertThat(credential.getValue()).isEqualTo("Password@123");
-            assertThat(credential.isTemporary()).isFalse();
-        });
+        assertThat(createdUser.isEmailVerified()).isFalse();
+        assertThat(createdUser.getCredentials()).isNullOrEmpty();
+        assertThat(createdUser.getRequiredActions())
+                .containsExactly(
+                        KeycloakRequiredAction.VERIFY_EMAIL.providerId(),
+                        KeycloakRequiredAction.UPDATE_PASSWORD.providerId()
+                );
         verify(createUserResponse).close();
     }
 
@@ -331,6 +332,7 @@ class KeycloakAdminServiceImplTests {
                 List.of(
                         KeycloakRequiredAction.UPDATE_PASSWORD,
                         KeycloakRequiredAction.CONFIGURE_TOTP,
+                        KeycloakRequiredAction.VERIFY_PROFILE,
                         KeycloakRequiredAction.UPDATE_PASSWORD
                 )
         );
@@ -340,7 +342,11 @@ class KeycloakAdminServiceImplTests {
         verify(userResource).update(userCaptor.capture());
 
         assertThat(userCaptor.getValue().getRequiredActions())
-                .containsExactly("UPDATE_PASSWORD", "CONFIGURE_TOTP");
+                .containsExactly(
+                        "UPDATE_PASSWORD",
+                        "CONFIGURE_TOTP",
+                        "VERIFY_PROFILE"
+                );
     }
 
     @Test
@@ -382,7 +388,6 @@ class KeycloakAdminServiceImplTests {
         return new CreateUserRequest(
                 "new-user",
                 "new-user@pcverse.com",
-                "Password@123",
                 "New",
                 "User",
                 "0900000000",
