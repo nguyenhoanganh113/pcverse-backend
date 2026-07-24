@@ -13,7 +13,7 @@ import java.util.Map;
 @Component
 public class KeycloakAuthoritiesConverter implements AuthoritiesConverter {
 
-    @Value("${keycloak.resource-client-id:pc-verse-api}")
+    @Value("${keycloak.resource-client-id:pc-verse-backend}")
     String resourceClientId;
 
     @Override

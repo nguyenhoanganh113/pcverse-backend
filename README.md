@@ -40,7 +40,7 @@ KEYCLOAK_ADMIN_SERVER_URL=http://localhost:8090
 KEYCLOAK_ADMIN_REALM=pc-verse
 KEYCLOAK_ADMIN_CLIENT_ID=pc-verse-admin
 KEYCLOAK_ADMIN_CLIENT_SECRET=replace-with-client-secret
-KEYCLOAK_RESOURCE_CLIENT_ID=pc-verse-api
+KEYCLOAK_RESOURCE_CLIENT_ID=pc-verse-backend
 ```
 
 ### Creating users through the backend Admin API

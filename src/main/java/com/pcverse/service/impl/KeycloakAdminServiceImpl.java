@@ -19,6 +19,7 @@ import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
@@ -27,6 +28,7 @@ import org.keycloak.representations.idm.UserSessionRepresentation;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -39,6 +41,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
     @Override
     public String createUser(CreateUserRequest request) {
+
         UserRepresentation userRepresentation = new UserRepresentation();
         userRepresentation.setUsername(request.username());
         userRepresentation.setEmail(request.email());
@@ -47,14 +50,21 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         userRepresentation.setEnabled(true);
         userRepresentation.setEmailVerified(false);
         userRepresentation.setRequiredActions(List.of(
-                KeycloakRequiredAction.VERIFY_EMAIL.providerId(),
-                KeycloakRequiredAction.UPDATE_PASSWORD.providerId()
+                KeycloakRequiredAction.VERIFY_EMAIL.providerId()
         ));
 
-        try (Response response = keycloak
-                .realm(keycloakAdminProperties.realm())
-                .users()
-                .create(userRepresentation)) {
+        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+        credentialRepresentation.setValue(request.password());
+        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+        credentialRepresentation.setTemporary(false);
+
+        List<CredentialRepresentation> list = new ArrayList<>();
+        list.add(credentialRepresentation);
+        userRepresentation.setCredentials(list);
+
+        UsersResource usersResource = keycloak.realm(keycloakAdminProperties.realm()).users();
+
+        try (Response response = usersResource.create(userRepresentation)) {
             int status = response.getStatus();
 
             if (status == Response.Status.CONFLICT.getStatusCode()) {
@@ -71,6 +81,8 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                 log.error("Keycloak did not return the created user ID for {}", request.username());
                 throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
             }
+
+            usersResource.get(keycloakUserId).sendVerifyEmail();
 
             return keycloakUserId;
         } catch (AppException exception) {

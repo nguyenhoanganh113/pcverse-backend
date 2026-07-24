@@ -2,9 +2,7 @@ package com.pcverse.dto.request;
 
 import com.pcverse.enums.Gender;
 import com.pcverse.validation.annotation.EnumPattern;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 
@@ -12,6 +10,10 @@ public record CreateUserRequest(
 
         @NotBlank(message = "Username is required")
         String username,
+
+        @NotBlank(message = "Password is required")
+        @Size(min = 8, message = "Password must be greater than 8 characters")
+        String password,
 
         @NotBlank(message = "Email is required")
         @Email(message = "Email must be valid")
@@ -45,6 +47,7 @@ public record CreateUserRequest(
                 phoneNumber = trim(phoneNumber);
                 gender = trim(gender);
                 urlAvatar = trimToNull(urlAvatar);
+                password = trim(password);
         }
 
         private static String trim(String value) {
