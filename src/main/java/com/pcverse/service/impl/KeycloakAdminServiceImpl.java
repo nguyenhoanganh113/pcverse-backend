@@ -104,7 +104,10 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
-    public void setUserEnabled(String keycloakUserId, boolean enabled) {
+    public void updateUserEnabledStatus(
+            String keycloakUserId,
+            boolean enabled
+    ) {
         try {
             UserResource userResource = userResource(keycloakUserId);
             UserRepresentation user = userResource.toRepresentation();

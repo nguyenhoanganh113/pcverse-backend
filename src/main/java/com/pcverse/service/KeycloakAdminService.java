@@ -12,7 +12,10 @@ public interface KeycloakAdminService {
 
     String createUser(CreateUserRequest request);
 
-    void setUserEnabled(String keycloakUserId, boolean enabled);
+    void updateUserEnabledStatus(
+            String keycloakUserId,
+            boolean enabled
+    );
 
     void updateUser(String keycloakUserId, UpdateAdminUserRequest request);
 

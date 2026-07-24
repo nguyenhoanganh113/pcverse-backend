@@ -195,12 +195,15 @@ public class UserServiceImpl implements UserService {
                     throw new AppException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
         };
 
-        // Keycloak is updated first so a failed remote call does not leave local DB disabled
-        // while the user can still authenticate through Keycloak.
-        keycloakAdminService.setUserEnabled(keycloakId, enabled);
-
         user.setUserStatus(status);
-        return userMapper.toUserDetailResponse(userRepository.save(user));
+        userRepository.saveAndFlush(user);
+
+        keycloakAdminService.updateUserEnabledStatus(
+                keycloakId,
+                enabled
+        );
+
+        return userMapper.toUserDetailResponse(user);
     }
 
     @Override
