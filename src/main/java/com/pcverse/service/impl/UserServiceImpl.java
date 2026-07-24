@@ -13,6 +13,7 @@ import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
+import com.pcverse.event.UserCreatedEvent;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
@@ -22,6 +23,7 @@ import com.pcverse.service.KeycloakAdminService;
 import com.pcverse.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -74,6 +77,9 @@ public class UserServiceImpl implements UserService {
 
         try {
             userRepository.saveAndFlush(user);
+
+            eventPublisher.publishEvent(new UserCreatedEvent(keycloakUserId, request.username()));
+
             log.info("User created with Keycloak ID {}", keycloakUserId);
         } catch (RuntimeException exception) {
 

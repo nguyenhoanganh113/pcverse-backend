@@ -9,6 +9,7 @@ import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.service.KeycloakAdminService;
+import com.pcverse.service.KeycloakEmailService;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -81,8 +82,6 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                 log.error("Keycloak did not return the created user ID for {}", request.username());
                 throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
             }
-
-            usersResource.get(keycloakUserId).sendVerifyEmail();
 
             return keycloakUserId;
         } catch (AppException exception) {
