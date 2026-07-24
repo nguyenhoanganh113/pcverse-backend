@@ -1,5 +1,6 @@
 package com.pcverse.service.impl;
 
+import com.pcverse.dto.request.AdminUserSearchRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
@@ -22,6 +23,7 @@ import com.pcverse.repository.UserRepository;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.KeycloakAdminService;
 import com.pcverse.service.UserService;
+import com.pcverse.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -122,13 +124,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<UserDetailsResponse> getAllUsers(Pageable pageable) {
-        Page<User> userPage = userRepository.findAll(pageable);
+    public PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+
+        // Lấy danh sách user của page hiện tại theo các điều kiện tìm kiếm
+        Page<User> userPage = userRepository.findAll(UserSpecification.filter(searchRequest), pageable);
 
         if (userPage.isEmpty()) {
             return toPaginationResponse(userPage, List.of());
         }
 
+        // Lấy tất cả userId trong page hiện tại
         List<String> userIds = userPage.getContent()
                 .stream()
                 .map(User::getId)

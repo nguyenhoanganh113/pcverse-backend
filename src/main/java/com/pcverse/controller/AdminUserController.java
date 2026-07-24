@@ -1,6 +1,7 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.AssignUserRoleRequest;
+import com.pcverse.dto.request.AdminUserSearchRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
@@ -33,8 +34,9 @@ public class AdminUserController {
 
     private final UserService userService;
 
-    @GetMapping
+    @GetMapping("/search")
     ApiResponse<PaginationResponse<UserDetailsResponse>> getAllUsers(
+            @Valid @ModelAttribute AdminUserSearchRequest searchRequest,
             @PageableDefault(
                     size = 20,
                     sort = "createdAt",
@@ -43,7 +45,7 @@ public class AdminUserController {
             Pageable pageable
     ) {
         PaginationResponse<UserDetailsResponse> users =
-                userService.getAllUsers(pageable);
+                userService.getAllUsers(searchRequest, pageable);
 
         return ApiResponse.<PaginationResponse<UserDetailsResponse>>builder()
                 .code(HttpStatus.OK.value())

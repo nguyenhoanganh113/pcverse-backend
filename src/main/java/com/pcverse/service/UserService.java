@@ -1,5 +1,6 @@
 package com.pcverse.service;
 
+import com.pcverse.dto.request.AdminUserSearchRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
@@ -23,7 +24,7 @@ public interface UserService {
 
     UserDetailsResponse myInfo(Jwt jwt);
 
-    PaginationResponse<UserDetailsResponse> getAllUsers(Pageable pageable);
+    PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
 
     UserDetailsResponse getUserById(String userId);
 
