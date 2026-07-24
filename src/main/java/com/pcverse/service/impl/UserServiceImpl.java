@@ -175,7 +175,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserDetailsResponse getUserById(String userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findDetailsById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return userMapper.toUserDetailResponse(user);

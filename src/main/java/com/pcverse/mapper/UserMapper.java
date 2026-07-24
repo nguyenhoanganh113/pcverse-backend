@@ -15,7 +15,6 @@ import java.util.Locale;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UserMapper {
 
-    @Mapping(target = "password", ignore = true)
     User toUser(CreateUserRequest createUserRequest);
 
     CreateUserResponse toCreateUserResponse(User user);

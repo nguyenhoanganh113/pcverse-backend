@@ -38,4 +38,15 @@ public interface UserRepository extends
             @Param("userIds") Collection<String> userIds
     );
 
+    @EntityGraph(attributePaths = {
+            "userHasRoles",
+            "userHasRoles.role"
+    })
+    @Query("""
+        SELECT user
+        FROM User user
+        WHERE user.id = :userId
+        """)
+    Optional<User> findDetailsById(@Param("userId") String userId);
+
 }

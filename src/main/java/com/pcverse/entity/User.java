@@ -1,6 +1,5 @@
 package com.pcverse.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
 import jakarta.persistence.*;
@@ -33,9 +32,6 @@ public class User extends AbstractAuditingEntity {
 
     @Column(nullable = false, unique = true)
     private String email;
-
-    @JsonIgnore
-    private String password;
 
     @Column(nullable = false)
     private String firstName;
