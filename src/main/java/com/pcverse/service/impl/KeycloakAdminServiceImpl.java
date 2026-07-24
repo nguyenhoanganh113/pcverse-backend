@@ -9,7 +9,6 @@ import com.pcverse.enums.KeycloakRequiredAction;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.service.KeycloakAdminService;
-import com.pcverse.service.KeycloakEmailService;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;

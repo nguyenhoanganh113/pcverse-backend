@@ -6,11 +6,13 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.User;
 import com.pcverse.enums.UserStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
@@ -21,7 +23,7 @@ public interface UserService {
 
     UserDetailsResponse myInfo(Jwt jwt);
 
-    List<UserDetailsResponse> getAllUsers();
+    PaginationResponse<UserDetailsResponse> getAllUsers(Pageable pageable);
 
     UserDetailsResponse getUserById(String userId);
 

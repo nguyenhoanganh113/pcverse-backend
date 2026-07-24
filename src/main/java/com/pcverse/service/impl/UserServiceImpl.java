@@ -6,6 +6,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
@@ -25,14 +26,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -115,13 +121,50 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    // @PreAuthorize("hasRole('ADMIN')") cái này sẽ đi được vào service nên cần phải tạo 1 hàm để catch được
-    // khi throw AuthorizationDeniedException vì exception này thuộc service layer nên không xử lý ở nhánh này
-    public List<UserDetailsResponse> getAllUsers() {
-        return userRepository.findAll()
+    @Transactional(readOnly = true)
+    public PaginationResponse<UserDetailsResponse> getAllUsers(Pageable pageable) {
+        Page<User> userPage = userRepository.findAll(pageable);
+
+        if (userPage.isEmpty()) {
+            return toPaginationResponse(userPage, List.of());
+        }
+
+        List<String> userIds = userPage.getContent()
                 .stream()
+                .map(User::getId)
+                .toList();
+
+        Map<String, User> usersWithRolesById =
+                userRepository.findAllWithRolesByIdIn(userIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                User::getId,
+                                Function.identity()
+                        ));
+
+        List<UserDetailsResponse> users = userPage.getContent()
+                .stream()
+                .map(user -> usersWithRolesById.getOrDefault(
+                        user.getId(),
+                        user
+                ))
                 .map(userMapper::toUserDetailResponse)
                 .toList();
+
+        return toPaginationResponse(userPage, users);
+    }
+
+    private PaginationResponse<UserDetailsResponse> toPaginationResponse(
+            Page<User> userPage,
+            List<UserDetailsResponse> users
+    ) {
+        return PaginationResponse.<UserDetailsResponse>builder()
+                .currentPage(userPage.getNumber())
+                .size(userPage.getSize())
+                .totalPages(userPage.getTotalPages())
+                .totalElements(userPage.getTotalElements())
+                .data(users)
+                .build();
     }
 
     @Override

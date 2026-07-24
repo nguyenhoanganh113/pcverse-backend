@@ -9,12 +9,16 @@ import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +34,18 @@ public class AdminUserController {
     private final UserService userService;
 
     @GetMapping
-    ApiResponse<List<UserDetailsResponse>> getAllUsers() {
-        List<UserDetailsResponse> users = userService.getAllUsers();
+    ApiResponse<PaginationResponse<UserDetailsResponse>> getAllUsers(
+            @PageableDefault(
+                    size = 20,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            )
+            Pageable pageable
+    ) {
+        PaginationResponse<UserDetailsResponse> users =
+                userService.getAllUsers(pageable);
 
-        return ApiResponse.<List<UserDetailsResponse>>builder()
+        return ApiResponse.<PaginationResponse<UserDetailsResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Get all users successfully")
                 .data(users)
