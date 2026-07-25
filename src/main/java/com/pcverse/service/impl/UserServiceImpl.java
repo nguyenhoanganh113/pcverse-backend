@@ -181,6 +181,9 @@ public class UserServiceImpl implements UserService {
     public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
         String keycloakId = requireKeycloakId(user);
 
         boolean enabled = switch (status) {
@@ -211,10 +214,9 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
-            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
-        }
-        String keycloakId = user.getKeycloakId();
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
 
         boolean emailExists = !user.getEmail().equalsIgnoreCase(request.email())
                 && userRepository.existsByEmailIgnoreCase(request.email());
@@ -292,10 +294,9 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
-            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
-        }
-        String keycloakId = user.getKeycloakId();
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
 
         boolean alreadyAssigned = user.getUserHasRoles().stream()
                 .anyMatch(userRole -> roleName.equalsIgnoreCase(userRole.getRole().getRoleName()));
