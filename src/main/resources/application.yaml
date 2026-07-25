@@ -56,5 +56,9 @@ keycloak:
     client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
     resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-backend}
 
+security:
+  token-revocation:
+    session-ttl-seconds: ${SESSION_REVOCATION_TTL_SECONDS:3600}
+
 server:
   port: ${SERVER_PORT:8085}

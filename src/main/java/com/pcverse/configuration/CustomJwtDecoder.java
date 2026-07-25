@@ -65,11 +65,29 @@ public class CustomJwtDecoder implements JwtDecoder {
             throw new TokenRevokedException();
         }
 
+        String sessionId = resolveSessionId(jwt);
+        if (sessionId != null
+                && redisTokenService.isUserSessionRevoked(sessionId)) {
+            throw new TokenRevokedException();
+        }
+
         String keycloakId = jwt.getSubject();
         if (keycloakId != null && redisTokenService.isUserTokenRevoked(keycloakId, jwt.getIssuedAt())) {
             throw new TokenRevokedException();
         }
 
         return jwt;
+    }
+
+    private String resolveSessionId(Jwt jwt) {
+        String sessionId = jwt.getClaimAsString("sid");
+
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = jwt.getClaimAsString("session_state");
+        }
+
+        return sessionId == null || sessionId.isBlank()
+                ? null
+                : sessionId;
     }
 }

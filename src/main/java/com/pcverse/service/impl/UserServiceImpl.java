@@ -416,14 +416,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        boolean targetIsAdmin = user.getUserHasRoles().stream()
-                .anyMatch(userRole ->
-                        "ADMIN".equalsIgnoreCase(
-                                userRole.getRole().getRoleName()
-                        )
-                );
-        if (targetIsAdmin) {
-            throw new AppException(ErrorCode.FORBIDDEN);
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
         }
 
         String keycloakId = requireKeycloakId(user);
@@ -436,6 +430,7 @@ public class UserServiceImpl implements UserService {
         }
 
         keycloakAdminService.deleteUserSession(sessionId);
+        redisTokenService.revokeUserSession(sessionId);
     }
 
     @Override

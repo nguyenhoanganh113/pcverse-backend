@@ -487,14 +487,9 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             realmResource.deleteSession(sessionId, false);
 
         } catch (WebApplicationException exception) {
-            Integer status = exception.getResponse() == null
-                    ? null
+            int status = exception.getResponse() == null
+                    ? 0
                     : exception.getResponse().getStatus();
-
-            if (status != null
-                    && status == Response.Status.NOT_FOUND.getStatusCode()) {
-                throw new AppException(ErrorCode.USER_SESSION_NOT_FOUND);
-            }
 
             log.error(
                     "Keycloak rejected deleting user session {} with status {}",
@@ -503,7 +498,13 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            ErrorCode errorCode = switch (status) {
+                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
+                case 404 -> ErrorCode.USER_SESSION_NOT_FOUND;
+                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+            };
+
+            throw new AppException(errorCode);
 
         } catch (ProcessingException exception) {
             log.error(

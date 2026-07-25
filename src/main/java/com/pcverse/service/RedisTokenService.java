@@ -15,4 +15,8 @@ public interface RedisTokenService {
     void revokeAllUserTokens(String keycloakId);
 
     boolean isUserTokenRevoked(String keycloakId, Instant issuedAt);
+
+    void revokeUserSession(String sessionId);
+
+    boolean isUserSessionRevoked(String sessionId);
 }
