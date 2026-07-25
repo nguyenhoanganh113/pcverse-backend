@@ -73,13 +73,12 @@ public class UserServiceImpl implements UserService {
 
         String keycloakUserId = keycloakAdminService.createUser(request);
 
-        Role customerRole = roleService.getRoleByName("CUSTOMER");
-        keycloakAdminService.assignClientRole(keycloakUserId, "CUSTOMER");
-
-        user.setKeycloakId(keycloakUserId);
-        user.addRole(customerRole);
-
         try {
+            Role customerRole = roleService.getRoleByName("CUSTOMER");
+            keycloakAdminService.assignClientRole(keycloakUserId, "CUSTOMER");
+
+            user.setKeycloakId(keycloakUserId);
+            user.addRole(customerRole);
             userRepository.saveAndFlush(user);
 
             eventPublisher.publishEvent(new UserCreatedEvent(keycloakUserId, request.username()));
@@ -92,7 +91,7 @@ public class UserServiceImpl implements UserService {
             } catch (RuntimeException cleanupException) {
                 exception.addSuppressed(cleanupException);
                 log.error(
-                        "Failed to remove Keycloak user {} after local save failed",
+                        "Failed to remove Keycloak user {} after create-user workflow failed",
                         keycloakUserId,
                         cleanupException
                 );
