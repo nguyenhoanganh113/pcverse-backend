@@ -152,9 +152,23 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
-    public void deleteUser(String keycloakUserId) {
+    public boolean deleteUser(String keycloakUserId) {
         try {
             userResource(keycloakUserId).remove();
+            return true;
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse() != null
+                    && exception.getResponse().getStatus()
+                    == Response.Status.NOT_FOUND.getStatusCode()) {
+                log.info("Keycloak user {} was already deleted", keycloakUserId);
+                return false;
+            }
+
+            throw translateException(
+                    "delete user",
+                    keycloakUserId,
+                    exception
+            );
         } catch (RuntimeException exception) {
             throw translateException("delete user", keycloakUserId, exception);
         }

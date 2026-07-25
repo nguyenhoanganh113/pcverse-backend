@@ -5,6 +5,7 @@ import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
 import lombok.Builder;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -34,7 +35,9 @@ public record UserDetailsResponse(
 
         UserStatus userStatus,
 
-        List<String> roles
+        List<String> roles,
+
+        Instant deletedAt
 
 ) {
 }

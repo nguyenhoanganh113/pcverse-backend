@@ -16,12 +16,13 @@ import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.event.UserCreatedEvent;
+import com.pcverse.event.UserDeletedEvent;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
-import com.pcverse.service.RoleService;
 import com.pcverse.service.KeycloakAdminService;
+import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
 import com.pcverse.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -191,7 +193,7 @@ public class UserServiceImpl implements UserService {
         boolean enabled = switch (status) {
             case ACTIVE -> true;
             case DISABLED -> false;
-            case LOCKED, PENDING_VERIFICATION ->
+            case LOCKED, PENDING_VERIFICATION, DELETED ->
                     throw new AppException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
         };
 
@@ -247,9 +249,26 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        keycloakAdminService.deleteUser(requireKeycloakId(user));
-        userRepository.delete(user);
-        userRepository.flush();
+
+        String keycloakUserId = requireKeycloakId(user);
+        String email = user.getEmail();
+        String username = user.getUsername();
+        boolean newlyDeleted = user.getUserStatus() != UserStatus.DELETED;
+
+        if (newlyDeleted) {
+            user.markDeleted(Instant.now());
+            userRepository.saveAndFlush(user);
+        }
+
+        boolean keycloakUserDeleted =
+                keycloakAdminService.deleteUser(keycloakUserId);
+
+        if (newlyDeleted || keycloakUserDeleted) {
+            eventPublisher.publishEvent(new UserDeletedEvent(
+                    email,
+                    username
+            ));
+        }
     }
 
     @Override
@@ -304,12 +323,19 @@ public class UserServiceImpl implements UserService {
         }
 
         return userRepository.findByKeycloakId(keycloakId)
-                .map(existingUser ->
-                        syncUserFromToken(existingUser, jwt, username, email)
-                )
+                .map(existingUser -> {
+                    requireActiveUser(existingUser);
+                    return syncUserFromToken(
+                            existingUser,
+                            jwt,
+                            username,
+                            email
+                    );
+                })
                 // Account Linking tự động theo Email
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
                         .map(existingUser -> {
+                            requireActiveUser(existingUser);
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
@@ -511,6 +537,12 @@ public class UserServiceImpl implements UserService {
     private void validateUsernameAvailable(String username) {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+    }
+
+    private void requireActiveUser(User user) {
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
         }
     }
 
