@@ -22,6 +22,7 @@ import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.KeycloakAdminService;
+import com.pcverse.service.RedisTokenService;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
 import com.pcverse.specification.UserSpecification;
@@ -59,6 +60,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
+    private final RedisTokenService redisTokenService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -75,7 +77,7 @@ public class UserServiceImpl implements UserService {
 
         // Credentials are managed by Keycloak and are not stored in the local user.
         User user = userMapper.toUser(request);
-        user.setUserStatus(UserStatus.ACTIVE);
+        user.setUserStatus(UserStatus.PENDING_VERIFICATION);
 
         String keycloakUserId = keycloakAdminService.createUser(request);
 
@@ -262,6 +264,7 @@ public class UserServiceImpl implements UserService {
 
         boolean keycloakUserDeleted =
                 keycloakAdminService.deleteUser(keycloakUserId);
+        redisTokenService.revokeAllUserTokens(keycloakUserId);
 
         if (newlyDeleted || keycloakUserDeleted) {
             eventPublisher.publishEvent(new UserDeletedEvent(
@@ -287,7 +290,7 @@ public class UserServiceImpl implements UserService {
                 request.newPassword(),
                 request.isTemporary()
         );
-        keycloakAdminService.logoutUser(keycloakId);
+        logoutAndRevokeTokens(keycloakId);
     }
 
     @Override
@@ -332,7 +335,7 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.findByKeycloakId(keycloakId)
                 .map(existingUser -> {
-                    requireActiveUser(existingUser);
+                    activateUserAfterEmailVerification(existingUser);
                     return syncUserFromToken(
                             existingUser,
                             jwt,
@@ -343,7 +346,7 @@ public class UserServiceImpl implements UserService {
                 // Account Linking tự động theo Email
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
                         .map(existingUser -> {
-                            requireActiveUser(existingUser);
+                            activateUserAfterEmailVerification(existingUser);
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
@@ -380,7 +383,7 @@ public class UserServiceImpl implements UserService {
 
         // Thu hồi session trước khi gỡ role để user không thể lấy token mới
         // với role sắp bị xóa.
-        keycloakAdminService.logoutUser(keycloakId);
+        logoutAndRevokeTokens(keycloakId);
 
         keycloakAdminService.removeClientRole(
                 keycloakId,
@@ -395,19 +398,11 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        boolean targetIsAdmin = user.getUserHasRoles().stream()
-                .anyMatch(userRole ->
-                        "ADMIN".equalsIgnoreCase(
-                                userRole.getRole().getRoleName()
-                        )
-                );
-        if (targetIsAdmin) {
-            throw new AppException(ErrorCode.FORBIDDEN);
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
         }
 
-        keycloakAdminService.logoutUser(
-                requireKeycloakId(user)
-        );
+        logoutAndRevokeTokens(requireKeycloakId(user));
     }
 
     @Override
@@ -560,11 +555,25 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    private void activateUserAfterEmailVerification(User user) {
+        if (user.getUserStatus() == UserStatus.PENDING_VERIFICATION) {
+            user.setUserStatus(UserStatus.ACTIVE);
+            return;
+        }
+
+        requireActiveUser(user);
+    }
+
     private String requireKeycloakId(User user) {
         if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
             throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
         }
         return user.getKeycloakId();
+    }
+
+    private void logoutAndRevokeTokens(String keycloakUserId) {
+        keycloakAdminService.logoutUser(keycloakUserId);
+        redisTokenService.revokeAllUserTokens(keycloakUserId);
     }
 
     private String requiredClaim(String claims){

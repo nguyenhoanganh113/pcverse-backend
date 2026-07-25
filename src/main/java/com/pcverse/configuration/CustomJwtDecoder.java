@@ -63,6 +63,18 @@ public class CustomJwtDecoder implements JwtDecoder {
         if (redisTokenService.existsByJwtId(jwtId)) {
             throw new BadJwtException("Token has been revoked");
         }
+
+        String userId = jwt.getSubject();
+        if (userId != null
+                && redisTokenService.isUserTokenRevoked(
+                        userId,
+                        jwt.getIssuedAt()
+                )) {
+            throw new BadJwtException(
+                    "All tokens issued before user logout have been revoked"
+            );
+        }
+
         return jwt;
     }
 }

@@ -2,6 +2,8 @@ package com.pcverse.service;
 
 import com.pcverse.entity.RedisToken;
 
+import java.time.Instant;
+
 public interface RedisTokenService {
 
     void saveToken(RedisToken token);
@@ -10,5 +12,7 @@ public interface RedisTokenService {
 
     boolean existsByJwtId(String jwtId);
 
+    void revokeAllUserTokens(String userId);
 
+    boolean isUserTokenRevoked(String userId, Instant issuedAt);
 }
