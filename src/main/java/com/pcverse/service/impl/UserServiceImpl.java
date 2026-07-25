@@ -8,7 +8,6 @@ import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.Role;
@@ -41,7 +40,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -49,12 +47,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceImpl implements UserService {
-
-    private static final Set<String> DELETABLE_CREDENTIAL_TYPES = Set.of(
-            "otp",
-            "webauthn",
-            "webauthn-passwordless"
-    );
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
@@ -417,43 +409,6 @@ public class UserServiceImpl implements UserService {
         return keycloakAdminService.getUserSessions(
                 requireKeycloakId(user)
         );
-    }
-
-    @Override
-    public List<UserCredentialResponse> getUserCredentials(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        return keycloakAdminService.getUserCredentials(
-                requireKeycloakId(user)
-        );
-    }
-
-    @Override
-    public void deleteUserCredential(String userId, String credentialId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        String keycloakId = requireKeycloakId(user);
-        UserCredentialResponse credential = keycloakAdminService
-                .getUserCredentials(keycloakId)
-                .stream()
-                .filter(item -> credentialId.equals(item.credentialId()))
-                .findFirst()
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.USER_CREDENTIAL_NOT_FOUND)
-                );
-
-        if (credential.type() == null
-                || !DELETABLE_CREDENTIAL_TYPES.contains(
-                        credential.type().toLowerCase(Locale.ROOT)
-                )) {
-            throw new AppException(
-                    ErrorCode.USER_CREDENTIAL_DELETE_NOT_ALLOWED
-            );
-        }
-
-        keycloakAdminService.deleteUserCredential(keycloakId, credentialId);
     }
 
     @Override

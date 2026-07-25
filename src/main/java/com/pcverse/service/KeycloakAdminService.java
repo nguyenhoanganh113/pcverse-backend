@@ -2,7 +2,6 @@ package com.pcverse.service;
 
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
-import com.pcverse.dto.response.UserCredentialResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.enums.KeycloakRequiredAction;
 
@@ -30,10 +29,6 @@ public interface KeycloakAdminService {
     void logoutUser(String keycloakUserId);
 
     List<UserSessionResponse> getUserSessions(String keycloakUserId);
-
-    List<UserCredentialResponse> getUserCredentials(String keycloakUserId);
-
-    void deleteUserCredential(String keycloakUserId, String credentialId);
 
     void deleteUserSession(String sessionId);
 
