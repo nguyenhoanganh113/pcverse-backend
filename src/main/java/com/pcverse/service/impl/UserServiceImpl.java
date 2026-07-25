@@ -373,14 +373,14 @@ public class UserServiceImpl implements UserService {
         user.getUserHasRoles().remove(assignedRole);
         User updatedUser = userRepository.saveAndFlush(user);
 
-        // Thu hồi session trước khi gỡ role để user không thể lấy token mới
-        // với role sắp bị xóa.
-        logoutAndRevokeTokens(keycloakId);
-
         keycloakAdminService.removeClientRole(
                 keycloakId,
                 actualRoleName
         );
+
+        // Gỡ role khỏi Keycloak trước để mọi token được cấp mới không còn role cũ,
+        // sau đó thu hồi session và các access token đã được cấp trước đó.
+        logoutAndRevokeTokens(keycloakId);
 
         return userMapper.toUserDetailResponse(updatedUser);
     }
