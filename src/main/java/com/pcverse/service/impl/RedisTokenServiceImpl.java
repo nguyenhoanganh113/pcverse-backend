@@ -40,26 +40,20 @@ public class RedisTokenServiceImpl implements RedisTokenService {
     }
 
     @Override
-    public void revokeAllUserTokens(String userId) {
+    public void revokeAllUserTokens(String keycloakId) {
         userTokenRevocationRepository.save(
                 UserTokenRevocation.builder()
-                        .userId(userId)
-                        .revokedAtEpochSecond(
-                                Instant.now().getEpochSecond()
-                        )
+                        .keycloakId(keycloakId)
+                        .revokedAtEpochSecond(Instant.now().getEpochSecond())
                         .build()
         );
     }
 
     @Override
-    public boolean isUserTokenRevoked(
-            String userId,
-            Instant issuedAt
-    ) {
+    public boolean isUserTokenRevoked(String userId, Instant issuedAt) {
         return userTokenRevocationRepository.findById(userId)
                 .map(revocation -> issuedAt == null
-                        || issuedAt.getEpochSecond()
-                        <= revocation.getRevokedAtEpochSecond())
+                        || issuedAt.getEpochSecond() <= revocation.getRevokedAtEpochSecond())
                 .orElse(false);
     }
 }

@@ -12,7 +12,7 @@ public interface RedisTokenService {
 
     boolean existsByJwtId(String jwtId);
 
-    void revokeAllUserTokens(String userId);
+    void revokeAllUserTokens(String keycloakId);
 
-    boolean isUserTokenRevoked(String userId, Instant issuedAt);
+    boolean isUserTokenRevoked(String keycloakId, Instant issuedAt);
 }

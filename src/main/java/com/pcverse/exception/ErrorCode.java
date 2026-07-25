@@ -14,6 +14,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(404,"User not found", HttpStatus.NOT_FOUND),
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
+        TOKEN_REVOKED(401, "Token has been revoked", HttpStatus.UNAUTHORIZED),
     TOKEN_GENERATION_FAILED(500, "Token generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
     KEYCLOAK_ADMIN_API_ERROR(502, "Unable to complete the user operation in Keycloak", HttpStatus.BAD_GATEWAY),
     KEYCLOAK_USER_NOT_FOUND(404, "User does not exist in Keycloak", HttpStatus.NOT_FOUND),

@@ -1,5 +1,6 @@
 package com.pcverse.configuration;
 
+import com.pcverse.exception.TokenRevokedException;
 import com.pcverse.service.RedisTokenService;
 import jakarta.annotation.PostConstruct;
 import org.jspecify.annotations.NonNull;
@@ -61,18 +62,12 @@ public class CustomJwtDecoder implements JwtDecoder {
             throw new BadJwtException("JWT ID is missing");
         }
         if (redisTokenService.existsByJwtId(jwtId)) {
-            throw new BadJwtException("Token has been revoked");
+            throw new TokenRevokedException();
         }
 
-        String userId = jwt.getSubject();
-        if (userId != null
-                && redisTokenService.isUserTokenRevoked(
-                        userId,
-                        jwt.getIssuedAt()
-                )) {
-            throw new BadJwtException(
-                    "All tokens issued before user logout have been revoked"
-            );
+        String keycloakId = jwt.getSubject();
+        if (keycloakId != null && redisTokenService.isUserTokenRevoked(keycloakId, jwt.getIssuedAt())) {
+            throw new TokenRevokedException();
         }
 
         return jwt;
