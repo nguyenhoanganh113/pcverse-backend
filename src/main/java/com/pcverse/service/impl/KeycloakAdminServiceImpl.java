@@ -234,19 +234,15 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     public void assignClientRole(String keycloakUserId, String roleName) {
         try {
             // Lấy UUID nội bộ của client pc-verse-api và representation của role đã tồn tại.
-            RealmResource realmResource = keycloak.realm(keycloakAdminProperties.realm());
-            List<ClientRepresentation> clients = realmResource.clients()
-                    .findByClientId(keycloakAdminProperties.resourceClientId());
-            ClientRepresentation clientRepresentation = clients.stream()
-                    .filter(client -> keycloakAdminProperties.resourceClientId().equals(client.getClientId()))
-                    .findFirst()
-                    .orElseThrow(() -> {
-                        log.error("Keycloak resource client {} was not found", keycloakAdminProperties.resourceClientId());
-                        return new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                    });
+            RealmResource realmResource = realm();
+            ClientRepresentation clientRepresentation =
+                    requireResourceClient(realmResource);
 
             ClientResource clientResource = realmResource.clients().get(clientRepresentation.getId());
-            RoleRepresentation role = clientResource.roles().get(roleName).toRepresentation();
+            RoleRepresentation role = requireClientRole(
+                    clientResource,
+                    roleName
+            );
 
             // Tương ứng với Keycloak Admin REST API:
             // POST /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-id}
@@ -291,36 +287,20 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void removeClientRole(String keycloakUserId, String roleName) {
         try {
-            RealmResource realmResource =
-                    keycloak.realm(keycloakAdminProperties.realm());
+            RealmResource realmResource = realm();
 
             // Tìm UUID nội bộ của client pc-verse-api.
-            List<ClientRepresentation> clients = realmResource.clients()
-                    .findByClientId(keycloakAdminProperties.resourceClientId());
-
-            ClientRepresentation clientRepresentation = clients.stream()
-                    .filter(client ->
-                            keycloakAdminProperties.resourceClientId()
-                                    .equals(client.getClientId())
-                    )
-                    .findFirst()
-                    .orElseThrow(() -> {
-                        log.error(
-                                "Keycloak resource client {} was not found",
-                                keycloakAdminProperties.resourceClientId()
-                        );
-                        return new AppException(
-                                ErrorCode.KEYCLOAK_ADMIN_API_ERROR
-                        );
-                    });
+            ClientRepresentation clientRepresentation =
+                    requireResourceClient(realmResource);
 
             // Lấy representation của role cần gỡ.
             ClientResource clientResource = realmResource.clients()
                     .get(clientRepresentation.getId());
 
-            RoleRepresentation role = clientResource.roles()
-                    .get(roleName)
-                    .toRepresentation();
+            RoleRepresentation role = requireClientRole(
+                    clientResource,
+                    roleName
+            );
 
             UserResource userResource = realmResource.users()
                     .get(keycloakUserId);
@@ -646,6 +626,68 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
     private UserResource userResource(String keycloakUserId) {
         return realm().users().get(keycloakUserId);
+    }
+
+    private ClientRepresentation requireResourceClient(
+            RealmResource realmResource
+    ) {
+        String resourceClientId =
+                keycloakAdminProperties.resourceClientId();
+
+        try {
+            return realmResource.clients()
+                    .findByClientId(resourceClientId)
+                    .stream()
+                    .filter(client ->
+                            resourceClientId.equals(client.getClientId())
+                    )
+                    .findFirst()
+                    .orElseThrow(() -> {
+                        log.error(
+                                "Keycloak resource client {} was not found",
+                                resourceClientId
+                        );
+                        return new AppException(
+                                ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
+                        );
+                    });
+        } catch (WebApplicationException exception) {
+            if (hasStatus(exception, Response.Status.NOT_FOUND)) {
+                throw new AppException(
+                        ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
+                );
+            }
+            throw exception;
+        }
+    }
+
+    private RoleRepresentation requireClientRole(
+            ClientResource clientResource,
+            String roleName
+    ) {
+        try {
+            return clientResource.roles()
+                    .get(roleName)
+                    .toRepresentation();
+        } catch (WebApplicationException exception) {
+            if (hasStatus(exception, Response.Status.NOT_FOUND)) {
+                log.info(
+                        "Keycloak client role {} was not found",
+                        roleName
+                );
+                throw new AppException(ErrorCode.ROLE_NOT_FOUND);
+            }
+            throw exception;
+        }
+    }
+
+    private boolean hasStatus(
+            WebApplicationException exception,
+            Response.Status expectedStatus
+    ) {
+        return exception.getResponse() != null
+                && exception.getResponse().getStatus()
+                == expectedStatus.getStatusCode();
     }
 
     private ErrorCode resolveUserOperationError(Integer status) {
