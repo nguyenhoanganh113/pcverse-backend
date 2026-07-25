@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public record SendRequiredActionsEmailRequest(
@@ -20,6 +22,12 @@ public record SendRequiredActionsEmailRequest(
 ) {
 
     private static final int DEFAULT_LIFESPAN_SECONDS = 900;
+
+    public SendRequiredActionsEmailRequest {
+        if (actions != null) {
+            actions = List.copyOf(actions);
+        }
+    }
 
     public int resolvedLifespanSeconds() {
         return lifespanSeconds == null

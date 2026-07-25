@@ -133,13 +133,22 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     .update(userRepresentation);
 
         } catch (WebApplicationException exception) {
-            if (exception.getResponse() != null
-                    && exception.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.CONFLICT.getStatusCode()) {
                 throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
             }
 
-            log.error("Keycloak rejected updating user {}", keycloakUserId, exception);
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            log.error(
+                    "Keycloak rejected updating user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error("Unable to connect to Keycloak while updating user {}", keycloakUserId, exception);
@@ -187,12 +196,9 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     ? 0
                     : exception.getResponse().getStatus();
 
-            ErrorCode errorCode = switch (status) {
-                case 400 -> ErrorCode.PASSWORD_POLICY_VIOLATION;
-                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
-                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
-                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
-            };
+            ErrorCode errorCode = status == 400
+                    ? ErrorCode.PASSWORD_POLICY_VIOLATION
+                    : resolveUserOperationError(status);
 
             log.error("Keycloak rejected resetting password for user {} "
                             + "with status {}",
@@ -244,7 +250,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     status,
                     exception
             );
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            throw new AppException(resolveUserOperationError(status));
         } catch (ProcessingException exception) {
             log.error(
                     "Unable to connect to Keycloak while assigning client role {} to user {}",
@@ -323,13 +329,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            ErrorCode errorCode = switch (status) {
-                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
-                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
-                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
-            };
-
-            throw new AppException(errorCode);
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error(
@@ -381,13 +381,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            ErrorCode errorCode = switch (status) {
-                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
-                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
-                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
-            };
-
-            throw new AppException(errorCode);
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error(
@@ -449,13 +443,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            ErrorCode errorCode = switch (status) {
-                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
-                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
-                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
-            };
-
-            throw new AppException(errorCode);
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error(
@@ -498,11 +486,9 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            ErrorCode errorCode = switch (status) {
-                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
-                case 404 -> ErrorCode.USER_SESSION_NOT_FOUND;
-                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
-            };
+            ErrorCode errorCode = status == 404
+                    ? ErrorCode.USER_SESSION_NOT_FOUND
+                    : resolveUserOperationError(status);
 
             throw new AppException(errorCode);
 
@@ -558,7 +544,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error(
@@ -614,7 +600,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            throw new AppException(resolveUserOperationError(status));
 
         } catch (ProcessingException exception) {
             log.error(
@@ -644,6 +630,18 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         return realm().users().get(keycloakUserId);
     }
 
+    private ErrorCode resolveUserOperationError(Integer status) {
+        if (status == null) {
+            return ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+        }
+
+        return switch (status) {
+            case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
+            case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
+            default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+        };
+    }
+
     private AppException translateException(
             String operation,
             String keycloakUserId,
@@ -653,13 +651,27 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             return appException;
         }
 
-        if (exception instanceof WebApplicationException webException
-                && webException.getResponse() != null
-                && webException.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
-            return new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        if (exception instanceof WebApplicationException webException) {
+            Integer status = webException.getResponse() == null
+                    ? null
+                    : webException.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.CONFLICT.getStatusCode()) {
+                return new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            log.error(
+                    "Failed to {} in Keycloak for user {} with status {}",
+                    operation,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            return new AppException(resolveUserOperationError(status));
         }
 
-        if (exception instanceof WebApplicationException || exception instanceof ProcessingException) {
+        if (exception instanceof ProcessingException) {
             log.error("Failed to {} in Keycloak for user {}", operation, keycloakUserId, exception);
         } else {
             log.error("Unexpected Keycloak Admin Client error while trying to {} for user {}",

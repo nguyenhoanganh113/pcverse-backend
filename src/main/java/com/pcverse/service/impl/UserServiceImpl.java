@@ -199,6 +199,10 @@ public class UserServiceImpl implements UserService {
                 enabled
         );
 
+        if (status == UserStatus.DISABLED) {
+            logoutAndRevokeTokens(keycloakId);
+        }
+
         return userMapper.toUserDetailResponse(user);
     }
 
@@ -271,9 +275,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getUserStatus() == UserStatus.DELETED) {
-            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
-        }
+        requireUserNotDeleted(user);
 
         String keycloakId = requireKeycloakId(user);
 
@@ -351,9 +353,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getUserStatus() == UserStatus.DELETED) {
-            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
-        }
+        requireUserNotDeleted(user);
 
         String keycloakId = requireKeycloakId(user);
 
@@ -390,9 +390,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getUserStatus() == UserStatus.DELETED) {
-            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
-        }
+        requireUserNotDeleted(user);
 
         logoutAndRevokeTokens(requireKeycloakId(user));
     }
@@ -402,9 +400,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getUserStatus() == UserStatus.DELETED) {
-            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
-        }
+        requireUserNotDeleted(user);
 
         return keycloakAdminService.getUserSessions(
                 requireKeycloakId(user)
@@ -416,9 +412,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (user.getUserStatus() == UserStatus.DELETED) {
-            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
-        }
+        requireUserNotDeleted(user);
 
         String keycloakId = requireKeycloakId(user);
         boolean sessionBelongsToUser = keycloakAdminService.getUserSessions(keycloakId)
@@ -441,6 +435,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        requireUserNotDeleted(user);
+
         keycloakAdminService.sendRequiredActionsEmail(
                 requireKeycloakId(user),
                 request.actions(),
@@ -455,6 +451,8 @@ public class UserServiceImpl implements UserService {
     ) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
 
         keycloakAdminService.updateRequiredActions(
                 requireKeycloakId(user),
@@ -505,6 +503,12 @@ public class UserServiceImpl implements UserService {
 
     private void requireActiveUser(User user) {
         if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+    }
+
+    private void requireUserNotDeleted(User user) {
+        if (user.getUserStatus() == UserStatus.DELETED) {
             throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
         }
     }
