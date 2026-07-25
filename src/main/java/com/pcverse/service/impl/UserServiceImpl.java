@@ -356,7 +356,11 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        String keycloakId = user.getKeycloakId();
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+
+        String keycloakId = requireKeycloakId(user);
 
         UserHasRole assignedRole = user.getUserHasRoles().stream()
                 .filter(userRole ->
@@ -371,17 +375,19 @@ public class UserServiceImpl implements UserService {
 
         String actualRoleName = assignedRole.getRole().getRoleName();
 
-        // Xoá ở keycloak
+        user.getUserHasRoles().remove(assignedRole);
+        User updatedUser = userRepository.saveAndFlush(user);
+
+        // Thu hồi session trước khi gỡ role để user không thể lấy token mới
+        // với role sắp bị xóa.
+        keycloakAdminService.logoutUser(keycloakId);
+
         keycloakAdminService.removeClientRole(
                 keycloakId,
                 actualRoleName
         );
 
-        user.getUserHasRoles().remove(assignedRole);
-
-        User updatedUser = userRepository.saveAndFlush(user);
         return userMapper.toUserDetailResponse(updatedUser);
-
     }
 
     @Override
