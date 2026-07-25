@@ -13,8 +13,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.util.*;
-
 @Configuration
 @RequiredArgsConstructor
 @EnableWebSecurity
@@ -22,7 +20,7 @@ import java.util.*;
 public class SecurityConfiguration {
 
     private static final String[] POST_PUBLICS = {
-            "/api/v1/users"
+            "/api/v1/registrations"
     };
 
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
