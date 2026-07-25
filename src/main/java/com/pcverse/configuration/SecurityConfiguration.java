@@ -10,8 +10,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -31,11 +29,6 @@ public class SecurityConfiguration {
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
@@ -46,13 +39,6 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                                 .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/v1/users/admin").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.POST, "/api/v1/users/*/roles").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/users/*/status").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/users/*/password").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/users/*").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.DELETE, "/api/v1/users/*").hasRole("ADMIN")
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer

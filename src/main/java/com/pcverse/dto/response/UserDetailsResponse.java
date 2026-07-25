@@ -5,7 +5,9 @@ import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
 import lombok.Builder;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
@@ -31,7 +33,11 @@ public record UserDetailsResponse(
 
         LocalDate dateOfBirth,
 
-        UserStatus userStatus
+        UserStatus userStatus,
+
+        List<String> roles,
+
+        Instant deletedAt
 
 ) {
 }

@@ -19,24 +19,46 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        query:
+          fail_on_pagination_over_collection_fetch: true
 
   data:
+    web:
+      pageable:
+        max-page-size: 100
+
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 keycloak:
 
   issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8090/realms/pc-verse}
   jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8090/realms/pc-verse/protocol/openid-connect/certs}
-  resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-api}
+  resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-backend}
 
   admin:
     server-url: ${KEYCLOAK_ADMIN_SERVER_URL:http://localhost:8090}
     realm: ${KEYCLOAK_ADMIN_REALM:pc-verse}
     client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
     client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
-    resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-api}
+    resource-client-id: ${KEYCLOAK_RESOURCE_CLIENT_ID:pc-verse-backend}
+
+security:
+  token-revocation:
+    session-ttl-seconds: ${SESSION_REVOCATION_TTL_SECONDS:3600}
 
 server:
   port: ${SERVER_PORT:8085}

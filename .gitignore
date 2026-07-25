@@ -32,3 +32,9 @@ build/
 ### VS Code ###
 .vscode/
 .env
+
+# macOS
+.DS_Store
+
+# Local Keycloak PostgreSQL data
+/keycloak_db_data/

@@ -3,12 +3,16 @@ package com.pcverse.exception;
 import com.pcverse.dto.response.ErrorResponse;
 import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -22,8 +26,17 @@ import tools.jackson.databind.exc.InvalidFormatException;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(UserServiceException.class)
-    public ResponseEntity<ErrorResponse> handleUserServiceException(UserServiceException ex, WebRequest request) {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            WebRequest request
+    ) {
+        ErrorResponse response = buildErrorCodeResponse(ErrorCode.FORBIDDEN, request, null);
+        return ResponseEntity.status(ErrorCode.FORBIDDEN.getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ErrorResponse> handleAppException(AppException ex, WebRequest request) {
         ErrorCode errorCode = ex.getErrorCode();
         ErrorResponse response = buildErrorCodeResponse(errorCode, request, null);
 
@@ -45,9 +58,11 @@ public class GlobalExceptionHandler {
         List<FieldErrorResponse> details = e.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(fieldError -> new FieldErrorResponse(
-                        fieldError.getField(),
-                        fieldError.getDefaultMessage()
+                .map(fieldError -> buildFieldErrorDetail(
+                        fieldError,
+                        e.getBindingResult().getFieldType(
+                                fieldError.getField()
+                        )
                 ))
                 .toList();
 
@@ -55,6 +70,27 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getHttpStatus()).body(response);
 
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e,
+            WebRequest request
+    ) {
+        FieldErrorResponse detail = buildTypeMismatchDetail(
+                e.getName(),
+                e.getValue(),
+                e.getRequiredType()
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.VALIDATION_ERROR,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity.status(
+                ErrorCode.VALIDATION_ERROR.getHttpStatus()
+        ).body(response);
     }
 
     @ExceptionHandler(value = HttpMessageNotReadableException.class)
@@ -65,6 +101,58 @@ public class GlobalExceptionHandler {
         ErrorResponse response = buildErrorCodeResponse(ErrorCode.VALIDATION_ERROR, request, List.of(detail));
 
         return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getHttpStatus()).body(response);
+    }
+
+    private FieldErrorResponse buildFieldErrorDetail(
+            FieldError fieldError,
+            Class<?> requiredType
+    ) {
+        if (isTypeMismatch(fieldError)) {
+            return buildTypeMismatchDetail(
+                    fieldError.getField(),
+                    fieldError.getRejectedValue(),
+                    requiredType
+            );
+        }
+
+        return new FieldErrorResponse(
+                fieldError.getField(),
+                fieldError.getDefaultMessage()
+        );
+    }
+
+    private boolean isTypeMismatch(FieldError fieldError) {
+        String[] errorCodes = fieldError.getCodes();
+        return errorCodes != null
+                && Arrays.asList(errorCodes)
+                .contains(TypeMismatchException.ERROR_CODE);
+    }
+
+    private FieldErrorResponse buildTypeMismatchDetail(
+            String field,
+            Object rejectedValue,
+            Class<?> requiredType
+    ) {
+        String value = Objects.toString(rejectedValue, "null");
+
+        if (requiredType != null && requiredType.isEnum()) {
+            return new FieldErrorResponse(
+                    field,
+                    "Invalid value '" + value + "' for field '" + field
+                            + "'. Accepted values: "
+                            + extractAcceptedEnumValues(requiredType)
+            );
+        }
+
+        String expectedType = requiredType == null
+                ? "the required type"
+                : requiredType.getSimpleName();
+
+        return new FieldErrorResponse(
+                field,
+                "Invalid value '" + value + "' for field '" + field
+                        + "'. Expected type: " + expectedType
+        );
     }
 
     private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {

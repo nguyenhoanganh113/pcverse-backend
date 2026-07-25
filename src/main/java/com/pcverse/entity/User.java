@@ -1,11 +1,11 @@
 package com.pcverse.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -33,9 +33,6 @@ public class User extends AbstractAuditingEntity {
 
     @Column(nullable = false, unique = true)
     private String email;
-
-    @JsonIgnore
-    private String password;
 
     @Column(nullable = false)
     private String firstName;
@@ -67,6 +64,9 @@ public class User extends AbstractAuditingEntity {
     @Enumerated(EnumType.STRING)
     private UserStatus userStatus;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     // Method để thêm role cho user
     public void addRole(Role role) {
         this.userHasRoles.add(
@@ -75,6 +75,11 @@ public class User extends AbstractAuditingEntity {
                         .role(role)
                         .build()
         );
+    }
+
+    public void markDeleted(Instant deletionTime) {
+        userStatus = UserStatus.DELETED;
+        deletedAt = deletionTime;
     }
 
 }

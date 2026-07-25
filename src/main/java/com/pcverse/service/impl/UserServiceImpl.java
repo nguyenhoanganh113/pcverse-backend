@@ -1,34 +1,48 @@
 package com.pcverse.service.impl;
 
+import com.pcverse.dto.request.AdminUserSearchRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
+import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
-import com.pcverse.dto.request.CreateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
-import com.pcverse.enums.Gender;
+import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
+import com.pcverse.event.UserCreatedEvent;
+import com.pcverse.event.UserDeletedEvent;
+import com.pcverse.event.UserEmailChangedEvent;
+import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
-import com.pcverse.service.RoleService;
 import com.pcverse.service.KeycloakAdminService;
+import com.pcverse.service.RedisTokenService;
+import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
+import com.pcverse.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,73 +50,63 @@ import java.util.Objects;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
-
-    @Override
-    public CreateUserResponse createUser(CreateUserRequest request) {
-
-        // 1. Convert DTO sang Entity
-        User user = userMapper.toUser(request);
-
-        // 2. Mã hoá password
-        user.setPassword(passwordEncoder.encode(request.password()));
-        user.setUserStatus(UserStatus.ACTIVE);
-
-        // 3. Tạo hoặc lấy role CUSTOMER
-        Role role = roleService.createRole("CUSTOMER");
-
-        // 4. Gán role cho user
-        user.addRole(role);
-
-        // 5. Lưu user vào database
-        try {
-            userRepository.save(user);
-        } catch (DataIntegrityViolationException exception) {
-            log.error("User already exists");
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-        }
-
-        // 6. Convert Entity sang Response DTO
-        return userMapper.toCreateUserResponse(user);
-    }
+    private final RedisTokenService redisTokenService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
-    public UserDetailsResponse createAdminUser(CreateAdminUserRequest request) {
-        String email = request.email();
-        String username = request.username();
+    public CreateUserResponse createUser(CreateUserRequest request) {
 
-        if (userRepository.findByEmailIgnoreCase(email).isPresent()
-                || userRepository.existsByUsernameIgnoreCase(username)) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        if (userRepository.existsByUsernameIgnoreCase(request.username()) ||
+                userRepository.existsByEmailIgnoreCase(request.email())) {
+
+            log.error("Username or Email already exists when admin create a user");
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+
         }
 
-        Role adminRole = roleService.createRole("ADMIN");
-        String keycloakId = keycloakAdminService.createAdminUser(request);
+        // Credentials are managed by Keycloak and are not stored in the local user.
+        User user = userMapper.toUser(request);
+        user.setUserStatus(UserStatus.PENDING_VERIFICATION);
 
-        User user = User.builder()
-                .keycloakId(keycloakId)
-                .username(username)
-                .email(email)
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .phoneNumber(request.phoneNumber())
-                .urlAvatar(request.urlAvatar())
-                .gender(request.gender())
-                .dateOfBirth(request.dateOfBirth())
-                .userStatus(UserStatus.ACTIVE)
-                .build();
-        user.addRole(adminRole);
+        String keycloakUserId = keycloakAdminService.createUser(request);
 
         try {
-            return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
-        } catch (DataIntegrityViolationException exception) {
-            keycloakAdminService.deleteUser(keycloakId);
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            Role customerRole = roleService.getRoleByName("CUSTOMER");
+            keycloakAdminService.assignClientRole(keycloakUserId, "CUSTOMER");
+
+            user.setKeycloakId(keycloakUserId);
+            user.addRole(customerRole);
+            userRepository.saveAndFlush(user);
+
+            eventPublisher.publishEvent(new UserCreatedEvent(keycloakUserId, request.username()));
+
+            log.info("User created with Keycloak ID {}", keycloakUserId);
+        } catch (RuntimeException exception) {
+
+            try {
+                keycloakAdminService.deleteUser(keycloakUserId);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+                log.error(
+                        "Failed to remove Keycloak user {} after create-user workflow failed",
+                        keycloakUserId,
+                        cleanupException
+                );
+            }
+
+            if (exception instanceof DataIntegrityViolationException) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            throw exception;
         }
+
+        // Convert Entity sang Response DTO
+        return userMapper.toCreateUserResponse(user);
     }
 
     @Override
@@ -115,46 +119,118 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    // @PreAuthorize("hasRole('ADMIN')") cái này sẽ đi được vào service nên cần phải tạo 1 hàm để catch được
-    // khi throw AuthorizationDeniedException vì exception này thuộc service layer nên không xử lý ở nhánh này
-    public List<UserDetailsResponse> getAllUsers() {
-        return userRepository.findAll()
+    @Transactional(readOnly = true)
+    public PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+
+        // Lấy danh sách user của page hiện tại theo các điều kiện tìm kiếm
+        Page<User> userPage = userRepository.findAll(UserSpecification.filter(searchRequest), pageable);
+
+        if (userPage.isEmpty()) {
+            return toPaginationResponse(userPage, List.of());
+        }
+
+        // Lấy tất cả userId trong page hiện tại
+        List<String> userIds = userPage.getContent()
                 .stream()
+                .map(User::getId)
+                .toList();
+
+        Map<String, User> usersWithRolesById =
+                userRepository.findAllWithRolesByIdIn(userIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                User::getId,
+                                Function.identity()
+                        ));
+
+        List<UserDetailsResponse> users = userPage.getContent()
+                .stream()
+                .map(user -> usersWithRolesById.getOrDefault(
+                        user.getId(),
+                        user
+                ))
                 .map(userMapper::toUserDetailResponse)
                 .toList();
+
+        return toPaginationResponse(userPage, users);
+    }
+
+    private PaginationResponse<UserDetailsResponse> toPaginationResponse(
+            Page<User> userPage,
+            List<UserDetailsResponse> users
+    ) {
+        return PaginationResponse.<UserDetailsResponse>builder()
+                .currentPage(userPage.getNumber())
+                .size(userPage.getSize())
+                .totalPages(userPage.getTotalPages())
+                .totalElements(userPage.getTotalElements())
+                .data(users)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetailsResponse getUserById(String userId) {
+        User user = userRepository.findDetailsById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return userMapper.toUserDetailResponse(user);
     }
 
     @Override
     @Transactional
     public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
         String keycloakId = requireKeycloakId(user);
 
         boolean enabled = switch (status) {
             case ACTIVE -> true;
             case DISABLED -> false;
-            case LOCKED, PENDING_VERIFICATION ->
-                    throw new UserServiceException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
+            case LOCKED, PENDING_VERIFICATION, DELETED ->
+                    throw new AppException(ErrorCode.USER_STATUS_NOT_SUPPORTED);
         };
 
-        // Keycloak is updated first so a failed remote call does not leave local DB disabled
-        // while the user can still authenticate through Keycloak.
-        keycloakAdminService.setUserEnabled(keycloakId, enabled);
-
         user.setUserStatus(status);
-        return userMapper.toUserDetailResponse(userRepository.save(user));
+        userRepository.saveAndFlush(user);
+
+        keycloakAdminService.updateUserEnabledStatus(
+                keycloakId,
+                enabled
+        );
+
+        if (status == UserStatus.DISABLED) {
+            logoutAndRevokeTokens(keycloakId);
+        }
+
+        return userMapper.toUserDetailResponse(user);
     }
 
     @Override
     @Transactional
     public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
         String keycloakId = requireKeycloakId(user);
 
-        validateIdentityAvailable(user, request.username(), request.email());
-        keycloakAdminService.updateUser(keycloakId, request);
+        boolean emailChanged = !user.getEmail().equalsIgnoreCase(request.email());
+        boolean tokenClaimsChanged = emailChanged
+                || !Objects.equals(user.getFirstName(), request.firstName())
+                || !Objects.equals(user.getLastName(), request.lastName());
 
-        user.setUsername(request.username());
+        boolean emailExists = emailChanged
+                && userRepository.existsByEmailIgnoreCase(request.email());
+
+        if (emailExists) {
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
         user.setEmail(request.email());
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
@@ -163,45 +239,95 @@ public class UserServiceImpl implements UserService {
         user.setDateOfBirth(request.dateOfBirth());
         user.setUrlAvatar(request.urlAvatar());
 
-        try {
-            return userMapper.toUserDetailResponse(userRepository.saveAndFlush(user));
-        } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        if (emailChanged && user.getUserStatus() == UserStatus.ACTIVE) {
+            user.setUserStatus(UserStatus.PENDING_VERIFICATION);
         }
+
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        keycloakAdminService.updateUser(keycloakId, request);
+
+        if (tokenClaimsChanged) {
+            logoutAndRevokeTokens(keycloakId);
+        }
+
+        if (emailChanged) {
+            eventPublisher.publishEvent(new UserEmailChangedEvent(
+                    keycloakId,
+                    user.getUsername()
+            ));
+        }
+
+        return userMapper.toUserDetailResponse(user);
     }
 
     @Override
     @Transactional
     public void deleteUser(String userId) {
-        User user = findUser(userId);
-        keycloakAdminService.deleteUser(requireKeycloakId(user));
-        userRepository.delete(user);
-        userRepository.flush();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String keycloakUserId = requireKeycloakId(user);
+        String email = user.getEmail();
+        String username = user.getUsername();
+        boolean newlyDeleted = user.getUserStatus() != UserStatus.DELETED;
+
+        if (newlyDeleted) {
+            user.markDeleted(Instant.now());
+            userRepository.saveAndFlush(user);
+        }
+
+        boolean keycloakUserDeleted =
+                keycloakAdminService.deleteUser(keycloakUserId);
+        redisTokenService.revokeAllUserTokens(keycloakUserId);
+
+        if (newlyDeleted || keycloakUserDeleted) {
+            eventPublisher.publishEvent(new UserDeletedEvent(
+                    email,
+                    username
+            ));
+        }
     }
 
     @Override
     public void resetPassword(String userId, ResetUserPasswordRequest request) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
+
         keycloakAdminService.resetPassword(
-                requireKeycloakId(user),
+                keycloakId,
                 request.newPassword(),
                 request.isTemporary()
         );
+        logoutAndRevokeTokens(keycloakId);
     }
 
     @Override
     @Transactional
     public UserDetailsResponse assignRole(String userId, String roleName) {
-        User user = findUser(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
 
         boolean alreadyAssigned = user.getUserHasRoles().stream()
                 .anyMatch(userRole -> roleName.equalsIgnoreCase(userRole.getRole().getRoleName()));
-        if (alreadyAssigned) {
-            return userMapper.toUserDetailResponse(user);
+        if (!alreadyAssigned) {
+            user.addRole(roleService.createRole(roleName));
+            userRepository.saveAndFlush(user);
         }
 
-        keycloakAdminService.assignClientRole(requireKeycloakId(user), roleName);
-        user.addRole(roleService.createRole(roleName));
+        keycloakAdminService.assignClientRole(keycloakId, roleName);
         return userMapper.toUserDetailResponse(userRepository.save(user));
     }
 
@@ -220,27 +346,147 @@ public class UserServiceImpl implements UserService {
 
         // Nếu email chưa được verify
         if (!Boolean.TRUE.equals(jwt.getClaim("email_verified"))) {
-            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            throw new AppException(ErrorCode.TOKEN_INVALID);
         }
 
         return userRepository.findByKeycloakId(keycloakId)
-                .map(existingUser ->
-                        syncUserFromToken(existingUser, jwt, username, email)
-                )
+                .map(existingUser -> {
+                    activateUserAfterEmailVerification(existingUser);
+                    return syncUserFromToken(
+                            existingUser,
+                            jwt,
+                            username,
+                            email
+                    );
+                })
                 // Account Linking tự động theo Email
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
                         .map(existingUser -> {
+                            activateUserAfterEmailVerification(existingUser);
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
-                        .orElseGet(() -> createUserFromToken(jwt, keycloakId, username, email)));
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse removeRole(String userId, String roleName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
+
+        UserHasRole assignedRole = user.getUserHasRoles().stream()
+                .filter(userRole ->
+                        roleName.equalsIgnoreCase(
+                                userRole.getRole().getRoleName()
+                        )
+                )
+                .findFirst()
+                .orElseThrow(() ->
+                        new AppException(ErrorCode.USER_ROLE_NOT_ASSIGNED)
+                );
+
+        String actualRoleName = assignedRole.getRole().getRoleName();
+
+        user.getUserHasRoles().remove(assignedRole);
+        User updatedUser = userRepository.saveAndFlush(user);
+
+        keycloakAdminService.removeClientRole(
+                keycloakId,
+                actualRoleName
+        );
+
+        // Gỡ role khỏi Keycloak trước để mọi token được cấp mới không còn role cũ,
+        // sau đó thu hồi session và các access token đã được cấp trước đó.
+        logoutAndRevokeTokens(keycloakId);
+
+        return userMapper.toUserDetailResponse(updatedUser);
+    }
+
+    @Override
+    public void logoutUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        logoutAndRevokeTokens(requireKeycloakId(user));
+    }
+
+    @Override
+    public List<UserSessionResponse> getUserSessions(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        return keycloakAdminService.getUserSessions(
+                requireKeycloakId(user)
+        );
+    }
+
+    @Override
+    public void terminateUserSession(String userId, String sessionId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        String keycloakId = requireKeycloakId(user);
+        boolean sessionBelongsToUser = keycloakAdminService.getUserSessions(keycloakId)
+                .stream()
+                .anyMatch(session -> sessionId.equals(session.sessionId()));
+
+        if (!sessionBelongsToUser) {
+            throw new AppException(ErrorCode.USER_SESSION_NOT_FOUND);
+        }
+
+        keycloakAdminService.deleteUserSession(sessionId);
+        redisTokenService.revokeUserSession(sessionId);
+    }
+
+    @Override
+    public void sendRequiredActionsEmail(
+            String userId,
+            SendRequiredActionsEmailRequest request
+    ) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        keycloakAdminService.sendRequiredActionsEmail(
+                requireKeycloakId(user),
+                request.actions(),
+                request.resolvedLifespanSeconds()
+        );
+    }
+
+    @Override
+    public void updateRequiredActions(
+            String userId,
+            UpdateUserRequiredActionsRequest request
+    ) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        requireUserNotDeleted(user);
+
+        keycloakAdminService.updateRequiredActions(
+                requireKeycloakId(user),
+                request.actions()
+        );
     }
 
     private User linkExistingUser(User user, String keycloakId, String username) {
 
         // User này đã link với keycloakId khác trong keycloak database
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(keycloakId)) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
         // set keycloakId để user trong keycloak database
         user.setKeycloakId(keycloakId);
@@ -254,31 +500,7 @@ public class UserServiceImpl implements UserService {
         try {
             return userRepository.save(user);
         } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-        }
-    }
-
-    private User createUserFromToken(Jwt jwt, String keycloakId, String username, String email) {
-
-        validateUsernameAvailable(username);
-
-        User user = User.builder()
-                .keycloakId(keycloakId)
-                .username(username)
-                .email(email)
-                .firstName(requiredClaim(jwt.getClaimAsString("given_name")))
-                .lastName(requiredClaim(jwt.getClaimAsString("family_name")))
-                .phoneNumber(requiredClaim(jwt.getClaimAsString("phone_number")))
-                .urlAvatar(trimToNull(jwt.getClaimAsString("picture")))
-                .gender(Gender.valueOf(jwt.getClaimAsString("gender")))
-                .dateOfBirth(LocalDate.parse(requiredClaim(jwt.getClaimAsString("birthdate"))))
-                .userStatus(UserStatus.ACTIVE)
-                .build();
-
-        try {
-            return userRepository.save(user);
-        } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
@@ -287,73 +509,57 @@ public class UserServiceImpl implements UserService {
         user.setUsername(username);
         user.setFirstName(requiredClaim(jwt.getClaimAsString("given_name")));
         user.setLastName(requiredClaim(jwt.getClaimAsString("family_name")));
-        user.setPhoneNumber(requiredClaim(jwt.getClaimAsString("phone_number")));
-        user.setUrlAvatar(trimToNull(jwt.getClaimAsString("picture")));
-        user.setGender(Gender.valueOf(jwt.getClaimAsString("gender")));
-        user.setDateOfBirth(LocalDate.parse(requiredClaim(jwt.getClaimAsString("birthdate"))));
 
         try {
             return userRepository.save(user);
         } catch (DataIntegrityViolationException exception) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
     private void validateUsernameAvailable(String username) {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
-            throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
     }
 
-    private User findUser(String userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UserServiceException(ErrorCode.USER_NOT_FOUND));
+    private void requireActiveUser(User user) {
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+    }
+
+    private void requireUserNotDeleted(User user) {
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+    }
+
+    private void activateUserAfterEmailVerification(User user) {
+        if (user.getUserStatus() == UserStatus.PENDING_VERIFICATION) {
+            user.setUserStatus(UserStatus.ACTIVE);
+            return;
+        }
+
+        requireActiveUser(user);
     }
 
     private String requireKeycloakId(User user) {
         if (user.getKeycloakId() == null || user.getKeycloakId().isBlank()) {
-            throw new UserServiceException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
+            throw new AppException(ErrorCode.KEYCLOAK_USER_NOT_LINKED);
         }
         return user.getKeycloakId();
     }
 
-    private void validateIdentityAvailable(User currentUser, String username, String email) {
-        userRepository.findByUsernameIgnoreCase(username)
-                .filter(user -> !user.getId().equals(currentUser.getId()))
-                .ifPresent(user -> {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-                });
-
-        userRepository.findByEmailIgnoreCase(email)
-                .filter(user -> !user.getId().equals(currentUser.getId()))
-                .ifPresent(user -> {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-                });
+    private void logoutAndRevokeTokens(String keycloakUserId) {
+        keycloakAdminService.logoutUser(keycloakUserId);
+        redisTokenService.revokeAllUserTokens(keycloakUserId);
     }
 
     private String requiredClaim(String claims){
         if (claims == null || claims.isBlank()){
-            throw new UserServiceException(ErrorCode.TOKEN_INVALID);
+            throw new AppException(ErrorCode.TOKEN_INVALID);
         }
         return claims.strip();
     }
-
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value.strip();
-            }
-        }
-        return "";
-    }
-
-    private String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.strip();
-    }
-
-    private String usernameFromEmail(String email) {
-        int separatorIndex = email.indexOf('@');
-        return separatorIndex > 0 ? email.substring(0, separatorIndex) : email;
-    }
-
 }

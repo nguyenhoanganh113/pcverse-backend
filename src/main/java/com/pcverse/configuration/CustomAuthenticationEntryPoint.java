@@ -2,6 +2,7 @@ package com.pcverse.configuration;
 
 import com.pcverse.dto.response.ErrorResponse;
 import com.pcverse.exception.ErrorCode;
+import com.pcverse.exception.TokenRevokedException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @Component
 @RequiredArgsConstructor
@@ -28,14 +30,16 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
                          @NonNull AuthenticationException authException)
             throws IOException, ServletException {
 
-        // 1. Lấy error code UNAUTHORIZED (401)
-        ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
+        ErrorCode errorCode = containsCause(authException, TokenRevokedException.class)
+                ? ErrorCode.TOKEN_REVOKED
+                : ErrorCode.UNAUTHORIZED;
 
         // 2. Set HTTP status code
         response.setStatus(errorCode.getCode());
 
         // 3. Set content type là JSON
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         // 4. Tạo ErrorResponse object
         ErrorResponse errorResponse = ErrorResponse.builder()
@@ -52,5 +56,18 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
 
         // 6. Flush buffer để gửi response ngay lập tức
         response.flushBuffer();
+    }
+
+    private boolean containsCause(Throwable throwable, Class<? extends Throwable> expectedType) {
+        Throwable current = throwable;
+
+        while (current != null) {
+            if (expectedType.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+
+        return false;
     }
 }

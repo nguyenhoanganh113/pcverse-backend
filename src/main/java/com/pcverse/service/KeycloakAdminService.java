@@ -1,19 +1,45 @@
 package com.pcverse.service;
 
-import com.pcverse.dto.request.CreateAdminUserRequest;
+import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
+import com.pcverse.enums.KeycloakRequiredAction;
+
+import java.util.List;
 
 public interface KeycloakAdminService {
 
-    void setUserEnabled(String keycloakUserId, boolean enabled);
+    String createUser(CreateUserRequest request);
 
-    String createAdminUser(CreateAdminUserRequest request);
+    void updateUserEnabledStatus(
+            String keycloakUserId,
+            boolean enabled
+    );
 
     void updateUser(String keycloakUserId, UpdateAdminUserRequest request);
 
-    void deleteUser(String keycloakUserId);
+    boolean deleteUser(String keycloakUserId);
 
     void resetPassword(String keycloakUserId, String newPassword, boolean temporary);
 
     void assignClientRole(String keycloakUserId, String roleName);
+
+    void removeClientRole(String keycloakUserId, String roleName);
+
+    void logoutUser(String keycloakUserId);
+
+    List<UserSessionResponse> getUserSessions(String keycloakUserId);
+
+    void deleteUserSession(String sessionId);
+
+    void sendRequiredActionsEmail(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions,
+            int lifespanSeconds
+    );
+
+    void updateRequiredActions(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions
+    );
 }

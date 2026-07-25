@@ -1,10 +1,12 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.configuration.KeycloakAdminProperties;
-import com.pcverse.dto.request.CreateAdminUserRequest;
+import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.response.UserSessionResponse;
+import com.pcverse.enums.KeycloakRequiredAction;
+import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
-import com.pcverse.exception.UserServiceException;
 import com.pcverse.service.KeycloakAdminService;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
@@ -16,29 +18,95 @@ import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.representations.idm.UserSessionRepresentation;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
 @Service
 public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
-    private static final String PASSWORD_CREDENTIAL_TYPE = "password";
-    private static final String ADMIN_ROLE = "ADMIN";
-
-    private final Keycloak keycloakAdminClient;
-    private final KeycloakAdminProperties properties;
+    private final Keycloak keycloak;
+    private final KeycloakAdminProperties keycloakAdminProperties;
 
     @Override
-    public void setUserEnabled(String keycloakUserId, boolean enabled) {
+    public String createUser(CreateUserRequest request) {
+
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setUsername(request.username());
+        userRepresentation.setEmail(request.email());
+        userRepresentation.setFirstName(request.firstName());
+        userRepresentation.setLastName(request.lastName());
+        userRepresentation.setEnabled(true);
+        userRepresentation.setEmailVerified(false);
+        userRepresentation.setRequiredActions(List.of(
+                KeycloakRequiredAction.VERIFY_EMAIL.providerId()
+        ));
+
+        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+        credentialRepresentation.setValue(request.password());
+        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+        credentialRepresentation.setTemporary(false);
+
+        List<CredentialRepresentation> list = new ArrayList<>();
+        list.add(credentialRepresentation);
+        userRepresentation.setCredentials(list);
+
+        UsersResource usersResource = keycloak.realm(keycloakAdminProperties.realm()).users();
+
+        try (Response response = usersResource.create(userRepresentation)) {
+            int status = response.getStatus();
+
+            if (status == Response.Status.CONFLICT.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            if (status != Response.Status.CREATED.getStatusCode()) {
+                log.error("Keycloak returned status {} while creating user {}", status, request.username());
+                throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            }
+
+            String keycloakUserId = CreatedResponseUtil.getCreatedId(response);
+            if (keycloakUserId == null || keycloakUserId.isBlank()) {
+                log.error("Keycloak did not return the created user ID for {}", request.username());
+                throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            }
+
+            return keycloakUserId;
+        } catch (AppException exception) {
+            throw exception;
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse() != null
+                    && exception.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            log.error("Keycloak rejected the create-user request for {}", request.username(), exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        } catch (ProcessingException exception) {
+            // Lỗi kết nối Keycloak
+            log.error("Unable to connect to Keycloak while creating user {}", request.username(), exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        } catch (RuntimeException exception) {
+            log.error("Unexpected error while creating user {} in Keycloak", request.username(), exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public void updateUserEnabledStatus(
+            String keycloakUserId,
+            boolean enabled
+    ) {
         try {
             UserResource userResource = userResource(keycloakUserId);
             UserRepresentation user = userResource.toRepresentation();
@@ -50,59 +118,83 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
-    public String createAdminUser(CreateAdminUserRequest request) {
-        String keycloakUserId = null;
-
-        try {
-            UserRepresentation user = toUserRepresentation(request);
-
-            try (Response response = realm().users().create(user)) {
-                if (response.getStatus() == Response.Status.CONFLICT.getStatusCode()) {
-                    throw new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
-                }
-                if (response.getStatus() != Response.Status.CREATED.getStatusCode()) {
-                    log.error("Keycloak returned status {} while creating user", response.getStatus());
-                    throw new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                }
-
-                keycloakUserId = CreatedResponseUtil.getCreatedId(response);
-            }
-
-            if (keycloakUserId == null || keycloakUserId.isBlank()) {
-                throw new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-            }
-
-            assignClientRole(keycloakUserId, ADMIN_ROLE);
-            return keycloakUserId;
-        } catch (RuntimeException exception) {
-            cleanUpCreatedUser(keycloakUserId);
-            throw translateException("create admin user", keycloakUserId, exception);
-        }
-    }
-
-    @Override
     public void updateUser(String keycloakUserId, UpdateAdminUserRequest request) {
         try {
             UserResource userResource = userResource(keycloakUserId);
-            UserRepresentation user = userResource.toRepresentation();
+            UserRepresentation userRepresentation =
+                    userResource.toRepresentation();
+            boolean emailChanged = userRepresentation.getEmail() == null
+                    || !userRepresentation.getEmail().equalsIgnoreCase(request.email());
 
-            user.setUsername(request.username());
-            user.setEmail(request.email());
-            user.setFirstName(request.firstName());
-            user.setLastName(request.lastName());
-            user.setEmailVerified(true);
-            user.setAttributes(mergeAttributes(user.getAttributes(), request));
+            userRepresentation.setEmail(request.email());
+            userRepresentation.setFirstName(request.firstName());
+            userRepresentation.setLastName(request.lastName());
 
-            userResource.update(user);
+            if (emailChanged) {
+                userRepresentation.setEmailVerified(false);
+
+                List<String> requiredActions =
+                        userRepresentation.getRequiredActions() == null
+                                ? new ArrayList<>()
+                                : new ArrayList<>(
+                                        userRepresentation.getRequiredActions()
+                                );
+
+                String verifyEmailAction =
+                        KeycloakRequiredAction.VERIFY_EMAIL.providerId();
+                if (!requiredActions.contains(verifyEmailAction)) {
+                    requiredActions.add(verifyEmailAction);
+                }
+                userRepresentation.setRequiredActions(requiredActions);
+            }
+
+            userResource.update(userRepresentation);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.CONFLICT.getStatusCode()) {
+                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            log.error(
+                    "Keycloak rejected updating user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error("Unable to connect to Keycloak while updating user {}", keycloakUserId, exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         } catch (RuntimeException exception) {
-            throw translateException("update user", keycloakUserId, exception);
+            log.error("Unexpected error while updating user {} in Keycloak", keycloakUserId, exception);
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
     }
 
     @Override
-    public void deleteUser(String keycloakUserId) {
+    public boolean deleteUser(String keycloakUserId) {
         try {
             userResource(keycloakUserId).remove();
+            return true;
+        } catch (WebApplicationException exception) {
+            if (exception.getResponse() != null
+                    && exception.getResponse().getStatus()
+                    == Response.Status.NOT_FOUND.getStatusCode()) {
+                log.info("Keycloak user {} was already deleted", keycloakUserId);
+                return false;
+            }
+
+            throw translateException(
+                    "delete user",
+                    keycloakUserId,
+                    exception
+            );
         } catch (RuntimeException exception) {
             throw translateException("delete user", keycloakUserId, exception);
         }
@@ -111,12 +203,28 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void resetPassword(String keycloakUserId, String newPassword, boolean temporary) {
         CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(PASSWORD_CREDENTIAL_TYPE);
+        credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(newPassword);
         credential.setTemporary(temporary);
 
         try {
             userResource(keycloakUserId).resetPassword(credential);
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            ErrorCode errorCode = status == 400
+                    ? ErrorCode.PASSWORD_POLICY_VIOLATION
+                    : resolveUserOperationError(status);
+
+            log.error("Keycloak rejected resetting password for user {} "
+                            + "with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            throw new AppException(errorCode);
         } catch (RuntimeException exception) {
             throw translateException("reset password", keycloakUserId, exception);
         }
@@ -125,133 +233,510 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void assignClientRole(String keycloakUserId, String roleName) {
         try {
-            ClientRepresentation client = findResourceClient();
-            ClientResource clientResource = realm().clients().get(client.getId());
-            RoleRepresentation role = clientResource.roles().get(roleName).toRepresentation();
+            // Lấy UUID nội bộ của client pc-verse-api và representation của role đã tồn tại.
+            RealmResource realmResource = realm();
+            ClientRepresentation clientRepresentation =
+                    requireResourceClient(realmResource);
 
-            userResource(keycloakUserId)
-                    .roles()
-                    .clientLevel(client.getId())
+            ClientResource clientResource = realmResource.clients().get(clientRepresentation.getId());
+            RoleRepresentation role = requireClientRole(
+                    clientResource,
+                    roleName
+            );
+
+            // Tương ứng với Keycloak Admin REST API:
+            // POST /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-id}
+            // Body là một mảng RoleRepresentation, nên dù chỉ gán một role vẫn truyền List.of(role).
+            UserResource userResource = realmResource.users().get(keycloakUserId);
+            userResource.roles()
+                    .clientLevel(clientRepresentation.getId())
                     .add(List.of(role));
+        } catch (AppException exception) {
+            throw exception;
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+            log.error(
+                    "Keycloak rejected assigning client role {} to user {} with status {}",
+                    roleName,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            throw new AppException(resolveUserOperationError(status));
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while assigning client role {} to user {}",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         } catch (RuntimeException exception) {
-            throw translateException("assign client role " + roleName, keycloakUserId, exception);
+            log.error(
+                    "Unexpected error while assigning client role {} to user {} in Keycloak",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
     }
 
-    private UserRepresentation toUserRepresentation(CreateAdminUserRequest request) {
-        UserRepresentation user = new UserRepresentation();
-        user.setUsername(request.username());
-        user.setEmail(request.email());
-        user.setFirstName(request.firstName());
-        user.setLastName(request.lastName());
-        user.setEnabled(true);
-        user.setEmailVerified(true);
-        user.setAttributes(userAttributes(
-                request.phoneNumber(),
-                request.gender().name(),
-                request.dateOfBirth().toString(),
-                request.urlAvatar()
-        ));
+    @Override
+    public void removeClientRole(String keycloakUserId, String roleName) {
+        try {
+            RealmResource realmResource = realm();
 
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(PASSWORD_CREDENTIAL_TYPE);
-        credential.setValue(request.password());
-        credential.setTemporary(false);
-        user.setCredentials(List.of(credential));
-        return user;
+            // Tìm UUID nội bộ của client pc-verse-api.
+            ClientRepresentation clientRepresentation =
+                    requireResourceClient(realmResource);
+
+            // Lấy representation của role cần gỡ.
+            ClientResource clientResource = realmResource.clients()
+                    .get(clientRepresentation.getId());
+
+            RoleRepresentation role = requireClientRole(
+                    clientResource,
+                    roleName
+            );
+
+            UserResource userResource = realmResource.users()
+                    .get(keycloakUserId);
+
+            // DELETE /admin/realms/{realm}/users/{user-id}
+            //        /role-mappings/clients/{client-id}
+            userResource.roles()
+                    .clientLevel(clientRepresentation.getId())
+                    .remove(List.of(role));
+
+        } catch (AppException exception) {
+            throw exception;
+
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected removing client role {} from user {} with status {}",
+                    roleName,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while removing client role {} from user {}",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while removing client role {} from user {} in Keycloak",
+                    roleName,
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        }
     }
 
-    private Map<String, List<String>> mergeAttributes(
-            Map<String, List<String>> currentAttributes,
-            UpdateAdminUserRequest request
+    @Override
+    public void logoutUser(String keycloakUserId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            UserResource userResource = realmResource.users()
+                    .get(keycloakUserId);
+
+            // POST /admin/realms/{realm}/users/{user-id}/logout
+            // Xóa toàn bộ session và vô hiệu khả năng refresh token của user.
+            userResource.logout();
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected logging out user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while logging out user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while logging out user {} from Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(
+                    ErrorCode.KEYCLOAK_ADMIN_API_ERROR
+            );
+        }
+    }
+
+    @Override
+    public List<UserSessionResponse> getUserSessions(String keycloakUserId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            List<UserSessionRepresentation> sessions = realmResource.users()
+                    .get(keycloakUserId)
+                    .getUserSessions();
+
+            return sessions.stream()
+                    .map(session -> new UserSessionResponse(
+                            session.getId(),
+                            session.getIpAddress(),
+                            Instant.ofEpochMilli(session.getStart()),
+                            Instant.ofEpochMilli(session.getLastAccess()),
+                            session.isRememberMe(),
+                            session.getClients() == null
+                                    ? List.of()
+                                    : session.getClients().values().stream()
+                                            .sorted()
+                                            .toList()
+                    ))
+                    .toList();
+
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected getting sessions for user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while getting sessions for user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while getting sessions for user {} from Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public void deleteUserSession(String sessionId) {
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            // DELETE /admin/realms/{realm}/sessions/{session}?isOffline=false
+            realmResource.deleteSession(sessionId, false);
+
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected deleting user session {} with status {}",
+                    sessionId,
+                    status,
+                    exception
+            );
+
+            ErrorCode errorCode = status == 404
+                    ? ErrorCode.USER_SESSION_NOT_FOUND
+                    : resolveUserOperationError(status);
+
+            throw new AppException(errorCode);
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while deleting user session {}",
+                    sessionId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while deleting user session {} from Keycloak",
+                    sessionId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        }
+    }
+
+    @Override
+    public void sendRequiredActionsEmail(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions,
+            int lifespanSeconds
     ) {
-        Map<String, List<String>> attributes = currentAttributes == null
-                ? new HashMap<>()
-                : new HashMap<>(currentAttributes);
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
 
-        attributes.put("phoneNumber", List.of(request.phoneNumber()));
-        attributes.put("gender", List.of(request.gender().name()));
-        attributes.put("birthdate", List.of(request.dateOfBirth().toString()));
+            List<String> actionNames = actions.stream()
+                    .map(KeycloakRequiredAction::providerId)
+                    .distinct()
+                    .toList();
 
-        if (request.urlAvatar() == null) {
-            attributes.remove("picture");
-        } else {
-            attributes.put("picture", List.of(request.urlAvatar()));
+            // PUT /admin/realms/{realm}/users/{user-id}/execute-actions-email
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .executeActionsEmail(actionNames, lifespanSeconds);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected sending required-actions email to user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while sending required-actions email to user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while sending required-actions email to user {} from Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
-        return attributes;
     }
 
-    private Map<String, List<String>> userAttributes(
-            String phoneNumber,
-            String gender,
-            String birthdate,
-            String picture
+    @Override
+    public void updateRequiredActions(
+            String keycloakUserId,
+            List<KeycloakRequiredAction> actions
     ) {
-        Map<String, List<String>> attributes = new HashMap<>();
-        attributes.put("phoneNumber", List.of(phoneNumber));
-        attributes.put("gender", List.of(gender));
-        attributes.put("birthdate", List.of(birthdate));
-        if (picture != null) {
-            attributes.put("picture", List.of(picture));
+        try {
+            RealmResource realmResource =
+                    keycloak.realm(keycloakAdminProperties.realm());
+
+            List<String> actionNames = actions.stream()
+                    .map(KeycloakRequiredAction::providerId)
+                    .distinct()
+                    .toList();
+
+            UserRepresentation userRepresentation = new UserRepresentation();
+            userRepresentation.setRequiredActions(actionNames);
+
+            // PUT /admin/realms/{realm}/users/{user-id}
+            realmResource.users()
+                    .get(keycloakUserId)
+                    .update(userRepresentation);
+
+        } catch (WebApplicationException exception) {
+            Integer status = exception.getResponse() == null
+                    ? null
+                    : exception.getResponse().getStatus();
+
+            log.error(
+                    "Keycloak rejected updating required actions for user {} with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+
+            throw new AppException(resolveUserOperationError(status));
+
+        } catch (ProcessingException exception) {
+            log.error(
+                    "Unable to connect to Keycloak while updating required actions for user {}",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+
+        } catch (RuntimeException exception) {
+            log.error(
+                    "Unexpected error while updating required actions for user {} in Keycloak",
+                    keycloakUserId,
+                    exception
+            );
+
+            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         }
-        return attributes;
-    }
-
-    private ClientRepresentation findResourceClient() {
-        List<ClientRepresentation> clients = realm().clients()
-                .findByClientId(properties.resourceClientId());
-
-        return clients.stream()
-                .filter(client -> properties.resourceClientId().equals(client.getClientId()))
-                .findFirst()
-                .orElseThrow(() -> {
-                    log.error("Keycloak resource client {} was not found", properties.resourceClientId());
-                    return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
-                });
     }
 
     private RealmResource realm() {
-        return keycloakAdminClient.realm(properties.realm());
+        return keycloak.realm(keycloakAdminProperties.realm());
     }
 
     private UserResource userResource(String keycloakUserId) {
         return realm().users().get(keycloakUserId);
     }
 
-    private void cleanUpCreatedUser(String keycloakUserId) {
-        if (keycloakUserId == null) {
-            return;
-        }
+    private ClientRepresentation requireResourceClient(
+            RealmResource realmResource
+    ) {
+        String resourceClientId =
+                keycloakAdminProperties.resourceClientId();
 
         try {
-            userResource(keycloakUserId).remove();
-        } catch (RuntimeException cleanupException) {
-            log.error("Failed to clean up Keycloak user {} after creation failed",
-                    keycloakUserId, cleanupException);
+            return realmResource.clients()
+                    .findByClientId(resourceClientId)
+                    .stream()
+                    .filter(client ->
+                            resourceClientId.equals(client.getClientId())
+                    )
+                    .findFirst()
+                    .orElseThrow(() -> {
+                        log.error(
+                                "Keycloak resource client {} was not found",
+                                resourceClientId
+                        );
+                        return new AppException(
+                                ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
+                        );
+                    });
+        } catch (WebApplicationException exception) {
+            if (hasStatus(exception, Response.Status.NOT_FOUND)) {
+                throw new AppException(
+                        ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
+                );
+            }
+            throw exception;
         }
     }
 
-    private UserServiceException translateException(
+    private RoleRepresentation requireClientRole(
+            ClientResource clientResource,
+            String roleName
+    ) {
+        try {
+            return clientResource.roles()
+                    .get(roleName)
+                    .toRepresentation();
+        } catch (WebApplicationException exception) {
+            if (hasStatus(exception, Response.Status.NOT_FOUND)) {
+                log.info(
+                        "Keycloak client role {} was not found",
+                        roleName
+                );
+                throw new AppException(ErrorCode.ROLE_NOT_FOUND);
+            }
+            throw exception;
+        }
+    }
+
+    private boolean hasStatus(
+            WebApplicationException exception,
+            Response.Status expectedStatus
+    ) {
+        return exception.getResponse() != null
+                && exception.getResponse().getStatus()
+                == expectedStatus.getStatusCode();
+    }
+
+    private ErrorCode resolveUserOperationError(Integer status) {
+        if (status == null) {
+            return ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+        }
+
+        return switch (status) {
+            case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
+            case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
+            default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+        };
+    }
+
+    private AppException translateException(
             String operation,
             String keycloakUserId,
             RuntimeException exception
     ) {
-        if (exception instanceof UserServiceException userServiceException) {
-            return userServiceException;
+        if (exception instanceof AppException appException) {
+            return appException;
         }
 
-        if (exception instanceof WebApplicationException webException
-                && webException.getResponse() != null
-                && webException.getResponse().getStatus() == Response.Status.CONFLICT.getStatusCode()) {
-            return new UserServiceException(ErrorCode.USER_ALREADY_EXISTS);
+        if (exception instanceof WebApplicationException webException) {
+            Integer status = webException.getResponse() == null
+                    ? null
+                    : webException.getResponse().getStatus();
+
+            if (status != null
+                    && status == Response.Status.CONFLICT.getStatusCode()) {
+                return new AppException(ErrorCode.USER_ALREADY_EXISTS);
+            }
+
+            log.error(
+                    "Failed to {} in Keycloak for user {} with status {}",
+                    operation,
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            return new AppException(resolveUserOperationError(status));
         }
 
-        if (exception instanceof WebApplicationException || exception instanceof ProcessingException) {
+        if (exception instanceof ProcessingException) {
             log.error("Failed to {} in Keycloak for user {}", operation, keycloakUserId, exception);
         } else {
             log.error("Unexpected Keycloak Admin Client error while trying to {} for user {}",
                     operation, keycloakUserId, exception);
         }
-        return new UserServiceException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+        return new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
     }
 }
