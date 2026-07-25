@@ -183,6 +183,25 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
         try {
             userResource(keycloakUserId).resetPassword(credential);
+        } catch (WebApplicationException exception) {
+            int status = exception.getResponse() == null
+                    ? 0
+                    : exception.getResponse().getStatus();
+
+            ErrorCode errorCode = switch (status) {
+                case 400 -> ErrorCode.PASSWORD_POLICY_VIOLATION;
+                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
+                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
+                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+            };
+
+            log.error("Keycloak rejected resetting password for user {} "
+                            + "with status {}",
+                    keycloakUserId,
+                    status,
+                    exception
+            );
+            throw new AppException(errorCode);
         } catch (RuntimeException exception) {
             throw translateException("reset password", keycloakUserId, exception);
         }

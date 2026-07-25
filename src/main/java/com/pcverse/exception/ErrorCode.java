@@ -16,6 +16,17 @@ public enum ErrorCode {
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
     TOKEN_GENERATION_FAILED(500, "Token generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
     KEYCLOAK_ADMIN_API_ERROR(502, "Unable to complete the user operation in Keycloak", HttpStatus.BAD_GATEWAY),
+    KEYCLOAK_USER_NOT_FOUND(404, "User does not exist in Keycloak", HttpStatus.NOT_FOUND),
+    KEYCLOAK_PERMISSION_DENIED(
+            502,
+            "The Keycloak service account does not have permission to perform this operation",
+            HttpStatus.BAD_GATEWAY
+    ),
+    PASSWORD_POLICY_VIOLATION(
+            400,
+            "Password does not meet the configured password policy",
+            HttpStatus.BAD_REQUEST
+    ),
     KEYCLOAK_USER_NOT_LINKED(409, "User is not linked to a Keycloak account", HttpStatus.CONFLICT),
     USER_STATUS_NOT_SUPPORTED(400, "This user status cannot be synchronized with Keycloak", HttpStatus.BAD_REQUEST),
     USER_ACCOUNT_INACTIVE(403, "User account is not active", HttpStatus.FORBIDDEN),

@@ -275,11 +275,19 @@ public class UserServiceImpl implements UserService {
     public void resetPassword(String userId, ResetUserPasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+
+        String keycloakId = requireKeycloakId(user);
+
         keycloakAdminService.resetPassword(
-                requireKeycloakId(user),
+                keycloakId,
                 request.newPassword(),
                 request.isTemporary()
         );
+        keycloakAdminService.logoutUser(keycloakId);
     }
 
     @Override
