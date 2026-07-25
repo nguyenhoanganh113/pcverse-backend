@@ -16,6 +16,7 @@ import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.event.UserCreatedEvent;
 import com.pcverse.event.UserDeletedEvent;
+import com.pcverse.event.UserEmailChangedEvent;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
@@ -218,7 +219,12 @@ public class UserServiceImpl implements UserService {
 
         String keycloakId = requireKeycloakId(user);
 
-        boolean emailExists = !user.getEmail().equalsIgnoreCase(request.email())
+        boolean emailChanged = !user.getEmail().equalsIgnoreCase(request.email());
+        boolean tokenClaimsChanged = emailChanged
+                || !Objects.equals(user.getFirstName(), request.firstName())
+                || !Objects.equals(user.getLastName(), request.lastName());
+
+        boolean emailExists = emailChanged
                 && userRepository.existsByEmailIgnoreCase(request.email());
 
         if (emailExists) {
@@ -233,6 +239,10 @@ public class UserServiceImpl implements UserService {
         user.setDateOfBirth(request.dateOfBirth());
         user.setUrlAvatar(request.urlAvatar());
 
+        if (emailChanged && user.getUserStatus() == UserStatus.ACTIVE) {
+            user.setUserStatus(UserStatus.PENDING_VERIFICATION);
+        }
+
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
@@ -240,6 +250,18 @@ public class UserServiceImpl implements UserService {
         }
 
         keycloakAdminService.updateUser(keycloakId, request);
+
+        if (tokenClaimsChanged) {
+            logoutAndRevokeTokens(keycloakId);
+        }
+
+        if (emailChanged) {
+            eventPublisher.publishEvent(new UserEmailChangedEvent(
+                    keycloakId,
+                    user.getUsername()
+            ));
+        }
+
         return userMapper.toUserDetailResponse(user);
     }
 

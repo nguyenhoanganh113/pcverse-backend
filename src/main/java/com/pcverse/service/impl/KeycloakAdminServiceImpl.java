@@ -120,17 +120,35 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     @Override
     public void updateUser(String keycloakUserId, UpdateAdminUserRequest request) {
         try {
-            RealmResource realmResource = keycloak.realm(keycloakAdminProperties.realm());
-
-            UserRepresentation userRepresentation = new UserRepresentation();
+            UserResource userResource = userResource(keycloakUserId);
+            UserRepresentation userRepresentation =
+                    userResource.toRepresentation();
+            boolean emailChanged = userRepresentation.getEmail() == null
+                    || !userRepresentation.getEmail().equalsIgnoreCase(request.email());
 
             userRepresentation.setEmail(request.email());
             userRepresentation.setFirstName(request.firstName());
             userRepresentation.setLastName(request.lastName());
 
-            realmResource.users()
-                    .get(keycloakUserId)
-                    .update(userRepresentation);
+            if (emailChanged) {
+                userRepresentation.setEmailVerified(false);
+
+                List<String> requiredActions =
+                        userRepresentation.getRequiredActions() == null
+                                ? new ArrayList<>()
+                                : new ArrayList<>(
+                                        userRepresentation.getRequiredActions()
+                                );
+
+                String verifyEmailAction =
+                        KeycloakRequiredAction.VERIFY_EMAIL.providerId();
+                if (!requiredActions.contains(verifyEmailAction)) {
+                    requiredActions.add(verifyEmailAction);
+                }
+                userRepresentation.setRequiredActions(requiredActions);
+            }
+
+            userResource.update(userRepresentation);
 
         } catch (WebApplicationException exception) {
             Integer status = exception.getResponse() == null
