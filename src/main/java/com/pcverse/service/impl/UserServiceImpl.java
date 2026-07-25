@@ -410,6 +410,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        if (user.getUserStatus() == UserStatus.DELETED) {
+            throw new AppException(ErrorCode.USER_ACCOUNT_INACTIVE);
+        }
+
         return keycloakAdminService.getUserSessions(
                 requireKeycloakId(user)
         );

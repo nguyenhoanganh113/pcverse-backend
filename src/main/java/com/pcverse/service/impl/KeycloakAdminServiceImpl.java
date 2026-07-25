@@ -439,8 +439,8 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     .toList();
 
         } catch (WebApplicationException exception) {
-            Integer status = exception.getResponse() == null
-                    ? null
+            int status = exception.getResponse() == null
+                    ? 0
                     : exception.getResponse().getStatus();
 
             log.error(
@@ -450,7 +450,13 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     exception
             );
 
-            throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            ErrorCode errorCode = switch (status) {
+                case 403 -> ErrorCode.KEYCLOAK_PERMISSION_DENIED;
+                case 404 -> ErrorCode.KEYCLOAK_USER_NOT_FOUND;
+                default -> ErrorCode.KEYCLOAK_ADMIN_API_ERROR;
+            };
+
+            throw new AppException(errorCode);
 
         } catch (ProcessingException exception) {
             log.error(
