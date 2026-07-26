@@ -195,13 +195,24 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+.login-pf-page .pf-c-form-control[aria-invalid="true"] {
+    color: var(--pcverse-text);
+    border-color: var(--pcverse-danger);
+    background: rgba(10, 18, 34, 0.96) !important;
+    background-image: none !important;
+    background-repeat: no-repeat !important;
+    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12);
+}
+
 .pf-c-input-group {
     display: flex;
+    background: transparent;
 }
 
 .pf-c-input-group .pf-c-form-control {
     flex: 1;
     border-radius: 10px 0 0 10px;
+    background: rgba(15, 23, 42, 0.8) !important;
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control {
@@ -210,12 +221,24 @@ textarea:focus {
     border: 1px solid #334155;
     border-left: 0;
     border-radius: 0 10px 10px 0;
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(15, 23, 42, 0.8) !important;
 }
 
 .pf-c-input-group .pf-c-button.pf-m-control:hover {
     color: var(--pcverse-text);
-    background: #1e293b;
+    background: #1e293b !important;
+}
+
+.login-pf-page .pf-c-input-group .pf-c-form-control[aria-invalid="true"] {
+    border-right: 0;
+    background: rgba(10, 18, 34, 0.96) !important;
+}
+
+.login-pf-page .pf-c-input-group .pf-c-form-control[aria-invalid="true"] + .pf-c-button.pf-m-control {
+    color: #fca5a5;
+    border-color: var(--pcverse-danger);
+    border-left: 0;
+    background: rgba(10, 18, 34, 0.96) !important;
 }
 
 .pf-c-button {
