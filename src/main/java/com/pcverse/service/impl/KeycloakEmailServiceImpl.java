@@ -16,9 +16,18 @@ public class KeycloakEmailServiceImpl implements KeycloakEmailService {
     private final Keycloak keycloak;
     private final KeycloakAdminProperties keycloakAdminProperties;
 
-    @Async
+    @Override
+    public void sendVerifyEmail(String keycloakUserId, String username) {
+        doSendVerifyEmail(keycloakUserId, username);
+    }
+
+    @Async("emailTaskExecutor")
     @Override
     public void sendVerifyEmailAsync(String keycloakUserId, String username) {
+        doSendVerifyEmail(keycloakUserId, username);
+    }
+
+    private void doSendVerifyEmail(String keycloakUserId, String username) {
         try {
             keycloak.realm(keycloakAdminProperties.realm())
                     .users()

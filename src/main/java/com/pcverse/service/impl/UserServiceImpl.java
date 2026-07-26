@@ -16,7 +16,6 @@ import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
 import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
-import com.pcverse.event.UserCreatedEvent;
 import com.pcverse.event.UserDeletedEvent;
 import com.pcverse.event.UserEmailChangedEvent;
 import com.pcverse.exception.AppException;
@@ -24,6 +23,7 @@ import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.UserMapper;
 import com.pcverse.repository.UserRepository;
 import com.pcverse.service.KeycloakAdminService;
+import com.pcverse.service.KeycloakEmailService;
 import com.pcverse.service.RedisTokenService;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
@@ -55,6 +55,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final RoleService roleService;
     private final KeycloakAdminService keycloakAdminService;
+    private final KeycloakEmailService keycloakEmailService;
     private final RedisTokenService redisTokenService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -84,7 +85,7 @@ public class UserServiceImpl implements UserService {
             user.addRole(customerRole);
             userRepository.saveAndFlush(user);
 
-            eventPublisher.publishEvent(new UserCreatedEvent(keycloakUserId, request.username()));
+            keycloakEmailService.sendVerifyEmailAsync(keycloakUserId, request.username());
 
             log.info("User created with Keycloak ID {}", keycloakUserId);
         } catch (RuntimeException exception) {
