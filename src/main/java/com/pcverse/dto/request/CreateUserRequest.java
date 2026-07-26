@@ -12,7 +12,7 @@ public record CreateUserRequest(
         String username,
 
         @NotBlank(message = "Password is required")
-        @Size(min = 8, message = "Password must be greater than 8 characters")
+        @Size(min = 8, message = "Password must contain at least 8 characters")
         String password,
 
         @NotBlank(message = "Email is required")
@@ -47,7 +47,6 @@ public record CreateUserRequest(
                 phoneNumber = trim(phoneNumber);
                 gender = trim(gender);
                 urlAvatar = trimToNull(urlAvatar);
-                password = trim(password);
         }
 
         private static String trim(String value) {
