@@ -12,6 +12,8 @@ public enum ErrorCode {
     VALIDATION_ERROR(400, "Invalid request data", HttpStatus.BAD_REQUEST),
     USER_ALREADY_EXISTS(409, "User already exists", HttpStatus.CONFLICT),
     USER_NOT_FOUND(404,"User not found", HttpStatus.NOT_FOUND),
+    PROFILE_INCOMPLETE(409, "User profile has not been completed", HttpStatus.CONFLICT),
+    PROFILE_ALREADY_COMPLETED(409, "User profile has already been completed", HttpStatus.CONFLICT),
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
         TOKEN_REVOKED(401, "Token has been revoked", HttpStatus.UNAUTHORIZED),
