@@ -56,6 +56,13 @@ MAIL_USERNAME=
 MAIL_PASSWORD=
 ```
 
+These values match the current Docker Compose topology. Keep
+`POSTGRES_DB=pc_verse`, `POSTGRES_USER=postgres`, and
+`POSTGRES_PASSWORD=123456` unless the hard-coded PostgreSQL container
+credentials in `compose.yaml` are changed at the same time. Keep
+`KEYCLOAK_PORT=8090` while `KC_HOSTNAME` is configured as
+`https://localhost:8090`.
+
 The `.env` file, local TLS keys, and local Keycloak database directory are
 ignored by Git. Never commit real client secrets, SMTP passwords, or private
 keys.
@@ -240,6 +247,71 @@ https://localhost:8090/realms/pc-verse/broker/google/endpoint
 This is the Google-to-Keycloak callback. It is different from the
 Keycloak-to-frontend callback configured in `Valid redirect URIs`. Keep the
 Google client secret outside Git.
+
+Use an opaque technical username for Google users instead of deriving it from
+their email address:
+
+1. Keep **Realm settings → Login → Email as username** disabled.
+2. Open **Identity providers → Google → Mappers** and add a mapper.
+3. Set **Mapper type** to `Username Template Importer`.
+4. Set **Sync mode override** to `Import`.
+5. Set **Template** to `pcv-${UUID}`.
+6. Set **Target** to `LOCAL`.
+
+For example, a newly imported user receives a username similar to
+`pcv-550e8400-e29b-41d4-a716-446655440000`. Keycloak currently generates the
+`${UUID}` value using UUID v4. This username is an internal, collision-resistant
+login name; the application must use the immutable OIDC `sub` claim as the
+identity key and must not use `preferred_username` as a primary key.
+
+The mapper only affects users imported after it is configured. It does not
+rename existing Keycloak users and does not create an account when an unknown
+user submits an email and password to the normal Keycloak login form.
+
+### Safe First Broker Login flow
+
+Do not automatically link a Google identity to an existing Keycloak account
+solely because both accounts contain the same email address. A malicious or
+misconfigured Identity Provider could otherwise cause account takeover.
+
+Create an editable copy of Keycloak's built-in safe flow:
+
+1. Open **Authentication → Flows**.
+2. Open the built-in `first broker login` flow.
+3. Select **Action → Duplicate**.
+4. Set the name to `google safe first broker login`.
+5. Use a description such as
+   `Safely creates or verifies and links users on their first Google login`.
+
+Keep the duplicated flow's security-relevant structure:
+
+```text
+Review Profile                                      Required
+User creation or linking                            Required
+├── Create User If Unique                           Alternative
+└── Handle Existing Account                         Alternative
+    ├── Confirm Link Existing Account               Required
+    └── Account verification options                Required
+        ├── Verify Existing Account By Email         Alternative
+        └── Verify Existing Account By Re-authentication
+                                                     Alternative
+```
+
+`Create User If Unique` creates and links a new local Keycloak user when no
+account conflicts. When an account with the same username or email already
+exists, the verification branch requires the user to prove ownership before
+linking. Keep SMTP configured if email verification is allowed; otherwise the
+re-authentication alternative must remain available.
+
+If the Google profile always supplies every required user attribute and the
+extra review page is not wanted, open the `Review Profile` execution settings
+and set **Update Profile On First Login** to `Off`. Do not replace the
+verification branch with automatic account linking.
+
+Finally, open **Identity providers → Google → Settings**, select
+`google safe first broker login` as **First login flow**, and save. Existing
+federated users are unaffected because this flow runs only when a Google
+identity has not yet been linked.
 
 ## Verify OpenID Connect
 
