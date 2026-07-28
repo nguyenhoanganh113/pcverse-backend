@@ -40,12 +40,12 @@ public class User extends AbstractAuditingEntity {
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false)
+    @Column
     private String phoneNumber;
 
     private String urlAvatar;
 
-    @Column(nullable = false)
+    @Column
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
@@ -57,7 +57,7 @@ public class User extends AbstractAuditingEntity {
     @Builder.Default
     private Set<Address> addresses = new HashSet<>();
 
-    @Column(nullable = false)
+    @Column
     private LocalDate dateOfBirth;
 
     @Column(nullable = false)
