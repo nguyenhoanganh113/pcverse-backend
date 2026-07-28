@@ -38,3 +38,8 @@ build/
 
 # Local Keycloak PostgreSQL data
 /keycloak_db_data/
+
+# Local Keycloak TLS files
+infrastructure/keycloak/certs/*.crt
+infrastructure/keycloak/certs/*.key
+infrastructure/keycloak/certs/*.pem

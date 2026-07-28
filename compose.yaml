@@ -30,13 +30,21 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION:-26.7.0}
     container_name: pc-verse-keycloak
+
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak} # 5432 là port default của postgre, keycloak chính là POSTGRES_DB
       KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak} # username và password khi config keycloak_db ở dưới
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak123}
 
-      KC_HOSTNAME: localhost
+      # URL công khai mà FE/browser sử dụng
+      KC_HOSTNAME: https://localhost:8090
+
+      # HTTPS listener chính thức của Keycloak
+      KC_HTTPS_PORT: 8443
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/certs/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/certs/tls.key
+
       KC_HTTP_ENABLED: true
       KC_HTTP_PORT: 8180 # cổng Keycloak thật sự lắng nghe bên trong container. Mặc định là 8080
 
@@ -46,15 +54,20 @@ services:
 
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+
     command: start-dev
     restart: unless-stopped
+
     depends_on:
       keycloak-db:
         condition: service_healthy
+
     volumes:
       - ./infrastructure/keycloak/themes:/opt/keycloak/themes:ro
+      - ./infrastructure/keycloak/certs:/opt/keycloak/conf/certs:ro
+
     ports:
-      - "${KEYCLOAK_PORT:-8090}:8180"
+      - "${KEYCLOAK_PORT:-8090}:8443"
     networks:
       - app_network
 
@@ -105,7 +118,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
 
-      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8090/realms/pc-verse}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-https://localhost:8090/realms/pc-verse}
       KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/pc-verse/protocol/openid-connect/certs
       KEYCLOAK_RESOURCE_CLIENT_ID: ${KEYCLOAK_RESOURCE_CLIENT_ID:-pc-verse-backend}
       KEYCLOAK_ADMIN_SERVER_URL: http://keycloak:8180

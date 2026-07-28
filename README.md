@@ -20,6 +20,77 @@ Monolithic Spring Boot backend for PCVerse, an ecommerce platform for PC compone
 ./mvnw spring-boot:run
 ```
 
+## Local Keycloak HTTPS
+
+Keycloak is exposed to the host at `https://localhost:8090`. Inside the Docker
+network, the backend still communicates with Keycloak over
+`http://keycloak:8180`; this internal HTTP port is not published to the host.
+
+The local TLS certificate and private key are intentionally ignored by Git.
+Generate them after cloning the repository by running the following commands
+from the repository root:
+
+```bash
+mkdir -p infrastructure/keycloak/certs
+
+openssl req \
+  -x509 \
+  -newkey rsa:2048 \
+  -sha256 \
+  -nodes \
+  -days 365 \
+  -keyout infrastructure/keycloak/certs/tls.key \
+  -out infrastructure/keycloak/certs/tls.crt \
+  -subj "/CN=localhost" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+  -addext "keyUsage=digitalSignature,keyEncipherment" \
+  -addext "extendedKeyUsage=serverAuth"
+```
+
+The generated files have different purposes:
+
+- `tls.crt` is the public certificate presented by Keycloak.
+- `tls.key` is the private key and must never be committed or shared.
+
+Verify the generated certificate and private key:
+
+```bash
+openssl x509 \
+  -in infrastructure/keycloak/certs/tls.crt \
+  -noout \
+  -subject \
+  -issuer \
+  -dates
+
+openssl pkey \
+  -in infrastructure/keycloak/certs/tls.key \
+  -check \
+  -noout
+```
+
+Start Keycloak and verify its OpenID Connect issuer:
+
+```bash
+docker compose up -d keycloak-db keycloak
+
+curl -k \
+  https://localhost:8090/realms/pc-verse/.well-known/openid-configuration
+```
+
+The discovery response must contain:
+
+```json
+{
+  "issuer": "https://localhost:8090/realms/pc-verse"
+}
+```
+
+Because this is a self-signed development certificate, browsers do not trust it
+automatically. On macOS, either accept the browser warning for local development
+or add `infrastructure/keycloak/certs/tls.crt` to Keychain Access and set it to
+**Always Trust**. Restart the browser after changing the trust setting.
+
 ## Keycloak Admin Client
 
 The application uses the official `org.keycloak:keycloak-admin-client` library with the
@@ -36,12 +107,17 @@ the API will assign, such as `ADMIN` and `CUSTOMER`.
 Required environment variables:
 
 ```bash
-KEYCLOAK_ADMIN_SERVER_URL=http://localhost:8090
+KEYCLOAK_ADMIN_SERVER_URL=https://localhost:8090
 KEYCLOAK_ADMIN_REALM=pc-verse
 KEYCLOAK_ADMIN_CLIENT_ID=pc-verse-admin
 KEYCLOAK_ADMIN_CLIENT_SECRET=replace-with-client-secret
 KEYCLOAK_RESOURCE_CLIENT_ID=pc-verse-backend
 ```
+
+When the backend runs through Docker Compose, the service overrides
+`KEYCLOAK_ADMIN_SERVER_URL` with `http://keycloak:8180` so administrative
+requests stay inside the Docker network. A backend started directly on the host
+uses the public HTTPS URL and its JVM must trust the local certificate.
 
 ### Creating users through the backend Admin API
 
