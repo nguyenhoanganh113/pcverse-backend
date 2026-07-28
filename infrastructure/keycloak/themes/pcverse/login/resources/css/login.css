@@ -372,6 +372,10 @@ a:focus {
     background: rgba(6, 78, 59, 0.24);
 }
 
+.pf-c-alert.pf-m-success .kc-feedback-text {
+    color: #a7f3d0;
+}
+
 .pf-c-alert.pf-m-info {
     border-color: rgba(56, 189, 248, 0.35);
     background: rgba(12, 74, 110, 0.24);

@@ -1,7 +1,6 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.AdminUserSearchRequest;
-import com.pcverse.dto.request.CompleteUserProfileRequest;
 import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
@@ -14,7 +13,6 @@ import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
-import com.pcverse.enums.Gender;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.event.UserDeletedEvent;
 import com.pcverse.event.UserEmailChangedEvent;
@@ -119,66 +117,6 @@ public class UserServiceImpl implements UserService {
         User user = ensureUserExistsFromToken(jwt);
 
         return userMapper.toUserDetailResponse(user);
-    }
-
-    @Override
-    @Transactional
-    public UserDetailsResponse completeProfile(
-            Jwt jwt,
-            CompleteUserProfileRequest request
-    ) {
-        String keycloakId = requiredClaim(jwt.getSubject());
-        String email = normalizedEmail(jwt);
-        String username = requiredClaim(
-                jwt.getClaimAsString("preferred_username")
-        );
-
-        requireVerifiedEmail(jwt);
-
-        if (userRepository.findByKeycloakId(keycloakId).isPresent()) {
-            throw new AppException(ErrorCode.PROFILE_ALREADY_COMPLETED);
-        }
-
-        if (userRepository.existsByEmailIgnoreCase(email)
-                || userRepository.existsByUsernameIgnoreCase(username)) {
-            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
-        }
-
-        Role customerRole = roleService.getRoleByName("CUSTOMER");
-        String tokenAvatar = jwt.getClaimAsString("picture");
-
-        User user = User.builder()
-                .keycloakId(keycloakId)
-                .username(username)
-                .email(email)
-                .firstName(requiredClaim(
-                        jwt.getClaimAsString("given_name")
-                ))
-                .lastName(requiredClaim(
-                        jwt.getClaimAsString("family_name")
-                ))
-                .phoneNumber(request.phoneNumber())
-                .urlAvatar(request.urlAvatar() == null
-                        ? tokenAvatar
-                        : request.urlAvatar())
-                .gender(Gender.valueOf(
-                        request.gender().toUpperCase(Locale.ROOT)
-                ))
-                .dateOfBirth(request.dateOfBirth())
-                .userStatus(UserStatus.ACTIVE)
-                .build();
-        user.addRole(customerRole);
-
-        try {
-            keycloakAdminService.assignClientRole(
-                    keycloakId,
-                    customerRole.getRoleName()
-            );
-            User completedUser = userRepository.saveAndFlush(user);
-            return userMapper.toUserDetailResponse(completedUser);
-        } catch (DataIntegrityViolationException exception) {
-            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
-        }
     }
 
     @Override
@@ -410,26 +348,20 @@ public class UserServiceImpl implements UserService {
         // Nếu email chưa được verify
         requireVerifiedEmail(jwt);
 
-        return userRepository.findByKeycloakId(keycloakId)
+        return userRepository.findByKeycloakId(keycloakId) // Account Linking tự động theo keycloakId
                 .map(existingUser -> {
                     activateUserAfterEmailVerification(existingUser);
-                    return syncUserFromToken(
-                            existingUser,
-                            jwt,
-                            username,
-                            email
-                    );
+                    return syncUserFromToken(existingUser, jwt, username, email);
                 })
                 // Account Linking tự động theo Email
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
-                        .map(existingUser -> {
+                        .map(existingUser -> { // Nếu tìm thấy bằng email (ignoreCase)
+                            // Cập nhật status user từ PENDING -> ACTIVE
                             activateUserAfterEmailVerification(existingUser);
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
                             return syncUserFromToken(linkedUser, jwt, username, email);
                         })
-                        .orElseThrow(() -> new AppException(
-                                ErrorCode.PROFILE_INCOMPLETE
-                        )));
+                        .orElseGet(() -> createLocalUserFromToken(jwt, keycloakId, username, email)));
     }
 
     @Override
@@ -575,6 +507,36 @@ public class UserServiceImpl implements UserService {
 
         try {
             return userRepository.save(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+    }
+
+    private User createLocalUserFromToken(Jwt jwt, String keycloakId, String username, String email) {
+
+        // Nếu có user có username trùng thì throw exception
+        validateUsernameAvailable(username);
+
+        Role customerRole = roleService.getRoleByName("CUSTOMER");
+
+        User user = User.builder()
+                .keycloakId(keycloakId)
+                .username(username)
+                .email(email)
+                .firstName(requiredClaim(jwt.getClaimAsString("given_name")))
+                .lastName(requiredClaim(jwt.getClaimAsString("family_name")))
+                .urlAvatar(jwt.getClaimAsString("picture"))
+                .userStatus(UserStatus.ACTIVE)
+                .build();
+
+        user.addRole(customerRole);
+
+        try {
+            User savedUser = userRepository.saveAndFlush(user);
+
+            keycloakAdminService.assignClientRole(keycloakId, customerRole.getRoleName());
+
+            return savedUser;
         } catch (DataIntegrityViolationException exception) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
