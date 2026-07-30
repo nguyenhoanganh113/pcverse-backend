@@ -18,11 +18,6 @@ public enum ErrorCode {
     TOKEN_GENERATION_FAILED(500, "Token generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
     KEYCLOAK_ADMIN_API_ERROR(502, "Unable to complete the user operation in Keycloak", HttpStatus.BAD_GATEWAY),
     KEYCLOAK_USER_NOT_FOUND(404, "User does not exist in Keycloak", HttpStatus.NOT_FOUND),
-    KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND(
-            502,
-            "Configured resource client does not exist in Keycloak",
-            HttpStatus.BAD_GATEWAY
-    ),
     KEYCLOAK_PERMISSION_DENIED(502, "The Keycloak service account does not have permission to perform this operation", HttpStatus.BAD_GATEWAY),
     PASSWORD_POLICY_VIOLATION(
             400,

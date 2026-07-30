@@ -28,12 +28,12 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/admin/users")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
 
     private final UserService userService;
 
     @GetMapping("/search")
+    @PreAuthorize("hasAuthority('ROLE_USER_READ')")
     ApiResponse<PaginationResponse<UserDetailsResponse>> getAllUsers(
             @Valid @ModelAttribute AdminUserSearchRequest searchRequest,
             @PageableDefault(
@@ -54,6 +54,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{userId}")
+    @PreAuthorize("hasAuthority('ROLE_USER_READ')")
     ApiResponse<UserDetailsResponse> getUserById(@PathVariable String userId) {
         UserDetailsResponse data = userService.getUserById(userId);
 
@@ -65,6 +66,7 @@ public class AdminUserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_USER_CREATE')")
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CreateUserResponse> createUser(@RequestBody @Valid CreateUserRequest request) {
         CreateUserResponse data = userService.createUser(request);
@@ -77,6 +79,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/{userId}/roles")
+    @PreAuthorize("hasAuthority('ROLE_USER_ROLE_MANAGE')")
     ApiResponse<UserDetailsResponse> assignRole(
             @PathVariable String userId,
             @RequestBody @Valid AssignUserRoleRequest request
@@ -91,6 +94,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{userId}")
+    @PreAuthorize("hasAuthority('ROLE_USER_UPDATE')")
     ApiResponse<UserDetailsResponse> updateUser(
             @PathVariable String userId,
             @RequestBody @Valid UpdateAdminUserRequest request
@@ -105,6 +109,7 @@ public class AdminUserController {
     }
 
     @PatchMapping("/{userId}/status")
+    @PreAuthorize("hasAuthority('ROLE_USER_STATUS_MANAGE')")
     ApiResponse<UserDetailsResponse> updateUserStatus(
             @PathVariable String userId,
             @RequestBody @Valid UpdateUserStatusRequest request
@@ -119,6 +124,7 @@ public class AdminUserController {
     }
 
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAuthority('ROLE_USER_DELETE')")
     ApiResponse<Void> deleteUser(@PathVariable String userId) {
         userService.deleteUser(userId);
 
@@ -129,6 +135,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{userId}/password")
+    @PreAuthorize("hasAuthority('ROLE_USER_PASSWORD_RESET')")
     ApiResponse<Void> resetPassword(
             @PathVariable String userId,
             @RequestBody @Valid ResetUserPasswordRequest request
@@ -142,6 +149,7 @@ public class AdminUserController {
     }
 
     @DeleteMapping("/{userId}/roles/{roleName}")
+    @PreAuthorize("hasAuthority('ROLE_USER_ROLE_MANAGE')")
     ApiResponse<UserDetailsResponse> removeRole(@PathVariable String userId,
                                                 @PathVariable String roleName) {
         UserDetailsResponse data = userService.removeRole(userId, roleName);
@@ -154,6 +162,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/{userId}/logout")
+    @PreAuthorize("hasAuthority('ROLE_USER_SESSION_TERMINATE')")
     ApiResponse<Void> logoutUser(@PathVariable String userId) {
         userService.logoutUser(userId);
 
@@ -164,6 +173,7 @@ public class AdminUserController {
     }
 
     @GetMapping("/{userId}/sessions")
+    @PreAuthorize("hasAuthority('ROLE_USER_SESSION_READ')")
     ApiResponse<List<UserSessionResponse>> getUserSessions(@PathVariable String userId) {
         List<UserSessionResponse> data = userService.getUserSessions(userId);
 
@@ -175,6 +185,7 @@ public class AdminUserController {
     }
 
     @DeleteMapping("/{userId}/sessions/{sessionId}")
+    @PreAuthorize("hasAuthority('ROLE_USER_SESSION_TERMINATE')")
     ApiResponse<Void> terminateUserSession(
             @PathVariable String userId,
             @PathVariable String sessionId
@@ -188,6 +199,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/{userId}/required-actions-email")
+    @PreAuthorize("hasAuthority('ROLE_USER_REQUIRED_ACTION_MANAGE')")
     ApiResponse<Void> sendRequiredActionsEmail(
             @PathVariable String userId,
             @RequestBody @Valid SendRequiredActionsEmailRequest request
@@ -201,6 +213,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{userId}/required-actions")
+    @PreAuthorize("hasAuthority('ROLE_USER_REQUIRED_ACTION_MANAGE')")
     ApiResponse<Void> updateRequiredActions(
             @PathVariable String userId,
             @RequestBody @Valid UpdateUserRequiredActionsRequest request

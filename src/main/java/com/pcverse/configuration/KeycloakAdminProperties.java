@@ -10,7 +10,6 @@ public record KeycloakAdminProperties(
         @NotBlank String serverUrl,
         @NotBlank String realm,
         @NotBlank String clientId,
-        @NotBlank String clientSecret,
-        @NotBlank String resourceClientId
+        @NotBlank String clientSecret
 ) {
 }
