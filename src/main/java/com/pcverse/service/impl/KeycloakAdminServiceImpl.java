@@ -15,11 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
-import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -231,25 +229,17 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
-    public void assignClientRole(String keycloakUserId, String roleName) {
+    public void assignRealmRole(String keycloakUserId, String roleName) {
         try {
-            // Lấy UUID nội bộ của client pc-verse-api và representation của role đã tồn tại.
             RealmResource realmResource = realm();
-            ClientRepresentation clientRepresentation =
-                    requireResourceClient(realmResource);
-
-            ClientResource clientResource = realmResource.clients().get(clientRepresentation.getId());
-            RoleRepresentation role = requireClientRole(
-                    clientResource,
-                    roleName
-            );
+            RoleRepresentation role = requireRealmRole(realmResource, roleName);
 
             // Tương ứng với Keycloak Admin REST API:
-            // POST /admin/realms/{realm}/users/{user-id}/role-mappings/clients/{client-id}
+            // POST /admin/realms/{realm}/users/{user-id}/role-mappings/realm
             // Body là một mảng RoleRepresentation, nên dù chỉ gán một role vẫn truyền List.of(role).
             UserResource userResource = realmResource.users().get(keycloakUserId);
             userResource.roles()
-                    .clientLevel(clientRepresentation.getId())
+                    .realmLevel()
                     .add(List.of(role));
         } catch (AppException exception) {
             throw exception;
@@ -258,7 +248,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     ? 0
                     : exception.getResponse().getStatus();
             log.error(
-                    "Keycloak rejected assigning client role {} to user {} with status {}",
+                    "Keycloak rejected assigning realm role {} to user {} with status {}",
                     roleName,
                     keycloakUserId,
                     status,
@@ -267,7 +257,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             throw new AppException(resolveUserOperationError(status));
         } catch (ProcessingException exception) {
             log.error(
-                    "Unable to connect to Keycloak while assigning client role {} to user {}",
+                    "Unable to connect to Keycloak while assigning realm role {} to user {}",
                     roleName,
                     keycloakUserId,
                     exception
@@ -275,7 +265,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
         } catch (RuntimeException exception) {
             log.error(
-                    "Unexpected error while assigning client role {} to user {} in Keycloak",
+                    "Unexpected error while assigning realm role {} to user {} in Keycloak",
                     roleName,
                     keycloakUserId,
                     exception
@@ -285,30 +275,18 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
-    public void removeClientRole(String keycloakUserId, String roleName) {
+    public void removeRealmRole(String keycloakUserId, String roleName) {
         try {
             RealmResource realmResource = realm();
-
-            // Tìm UUID nội bộ của client pc-verse-api.
-            ClientRepresentation clientRepresentation =
-                    requireResourceClient(realmResource);
-
-            // Lấy representation của role cần gỡ.
-            ClientResource clientResource = realmResource.clients()
-                    .get(clientRepresentation.getId());
-
-            RoleRepresentation role = requireClientRole(
-                    clientResource,
-                    roleName
-            );
+            RoleRepresentation role = requireRealmRole(realmResource, roleName);
 
             UserResource userResource = realmResource.users()
                     .get(keycloakUserId);
 
             // DELETE /admin/realms/{realm}/users/{user-id}
-            //        /role-mappings/clients/{client-id}
+            //        /role-mappings/realm
             userResource.roles()
-                    .clientLevel(clientRepresentation.getId())
+                    .realmLevel()
                     .remove(List.of(role));
 
         } catch (AppException exception) {
@@ -320,7 +298,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
                     : exception.getResponse().getStatus();
 
             log.error(
-                    "Keycloak rejected removing client role {} from user {} with status {}",
+                    "Keycloak rejected removing realm role {} from user {} with status {}",
                     roleName,
                     keycloakUserId,
                     status,
@@ -331,7 +309,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
         } catch (ProcessingException exception) {
             log.error(
-                    "Unable to connect to Keycloak while removing client role {} from user {}",
+                    "Unable to connect to Keycloak while removing realm role {} from user {}",
                     roleName,
                     keycloakUserId,
                     exception
@@ -343,7 +321,7 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
 
         } catch (RuntimeException exception) {
             log.error(
-                    "Unexpected error while removing client role {} from user {} in Keycloak",
+                    "Unexpected error while removing realm role {} from user {} in Keycloak",
                     roleName,
                     keycloakUserId,
                     exception
@@ -628,51 +606,18 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         return realm().users().get(keycloakUserId);
     }
 
-    private ClientRepresentation requireResourceClient(
-            RealmResource realmResource
-    ) {
-        String resourceClientId =
-                keycloakAdminProperties.resourceClientId();
-
-        try {
-            return realmResource.clients()
-                    .findByClientId(resourceClientId)
-                    .stream()
-                    .filter(client ->
-                            resourceClientId.equals(client.getClientId())
-                    )
-                    .findFirst()
-                    .orElseThrow(() -> {
-                        log.error(
-                                "Keycloak resource client {} was not found",
-                                resourceClientId
-                        );
-                        return new AppException(
-                                ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
-                        );
-                    });
-        } catch (WebApplicationException exception) {
-            if (hasStatus(exception, Response.Status.NOT_FOUND)) {
-                throw new AppException(
-                        ErrorCode.KEYCLOAK_RESOURCE_CLIENT_NOT_FOUND
-                );
-            }
-            throw exception;
-        }
-    }
-
-    private RoleRepresentation requireClientRole(
-            ClientResource clientResource,
+    private RoleRepresentation requireRealmRole(
+            RealmResource realmResource,
             String roleName
     ) {
         try {
-            return clientResource.roles()
+            return realmResource.roles()
                     .get(roleName)
                     .toRepresentation();
         } catch (WebApplicationException exception) {
             if (hasStatus(exception, Response.Status.NOT_FOUND)) {
                 log.info(
-                        "Keycloak client role {} was not found",
+                        "Keycloak realm role {} was not found",
                         roleName
                 );
                 throw new AppException(ErrorCode.ROLE_NOT_FOUND);

@@ -77,7 +77,6 @@ public class UserServiceImpl implements UserService {
 
         try {
             Role customerRole = roleService.getRoleByName("CUSTOMER");
-            keycloakAdminService.assignClientRole(keycloakUserId, "CUSTOMER");
 
             user.setKeycloakId(keycloakUserId);
             user.addRole(customerRole);
@@ -324,11 +323,11 @@ public class UserServiceImpl implements UserService {
         boolean alreadyAssigned = user.getUserHasRoles().stream()
                 .anyMatch(userRole -> roleName.equalsIgnoreCase(userRole.getRole().getRoleName()));
         if (!alreadyAssigned) {
-            user.addRole(roleService.createRole(roleName));
+            user.addRole(roleService.getRoleByName(roleName));
             userRepository.saveAndFlush(user);
         }
 
-        keycloakAdminService.assignClientRole(keycloakId, roleName);
+        keycloakAdminService.assignRealmRole(keycloakId, roleName);
         return userMapper.toUserDetailResponse(userRepository.save(user));
     }
 
@@ -390,7 +389,7 @@ public class UserServiceImpl implements UserService {
         user.getUserHasRoles().remove(assignedRole);
         User updatedUser = userRepository.saveAndFlush(user);
 
-        keycloakAdminService.removeClientRole(
+        keycloakAdminService.removeRealmRole(
                 keycloakId,
                 actualRoleName
         );
@@ -532,11 +531,7 @@ public class UserServiceImpl implements UserService {
         user.addRole(customerRole);
 
         try {
-            User savedUser = userRepository.saveAndFlush(user);
-
-            keycloakAdminService.assignClientRole(keycloakId, customerRole.getRoleName());
-
-            return savedUser;
+            return userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }

@@ -482,11 +482,15 @@ The Keycloak-hosted registration page has origin
 `https://localhost:8090` and calls the backend registration endpoint. The
 backend CORS allow-list must therefore contain this exact HTTPS origin.
 
-The current `application.yaml` default only contains
-`http://localhost:8090,http://localhost:4200`, and `compose.yaml` does not yet
-pass `CORS_ALLOWED_ORIGINS` to the app container. Consequently, the
-Keycloak-hosted registration form will be blocked by CORS until one of those
-configurations is updated to include `https://localhost:8090`.
+The local defaults allow:
+
+```text
+https://localhost:8090,http://localhost:8090,http://localhost:4200
+```
+
+Override this list with `CORS_ALLOWED_ORIGINS` when the frontend or Keycloak
+origin changes. CORS origins must match the browser origin exactly, including
+the scheme and port.
 
 The current registration API URL is `http://localhost:8083`; use backend HTTPS
 or a same-origin reverse proxy before using this flow outside local

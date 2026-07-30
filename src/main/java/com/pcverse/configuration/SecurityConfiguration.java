@@ -46,7 +46,8 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                                 .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
-                                .anyRequest().authenticated())
+                        .requestMatchers("/api/v1/admin/**", "api/v1/users/**").authenticated()
+                                .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter))
