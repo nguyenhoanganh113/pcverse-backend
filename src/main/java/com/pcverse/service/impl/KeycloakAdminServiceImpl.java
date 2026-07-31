@@ -176,6 +176,28 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
     }
 
     @Override
+    public void updateUserProfile(
+            String keycloakUserId,
+            String firstName,
+            String lastName
+    ) {
+        try {
+            UserResource userResource = userResource(keycloakUserId);
+            UserRepresentation userRepresentation = userResource.toRepresentation();
+
+            userRepresentation.setFirstName(firstName);
+            userRepresentation.setLastName(lastName);
+            userResource.update(userRepresentation);
+        } catch (RuntimeException exception) {
+            throw translateException(
+                    "update user profile",
+                    keycloakUserId,
+                    exception
+            );
+        }
+    }
+
+    @Override
     public boolean deleteUser(String keycloakUserId) {
         try {
             userResource(keycloakUserId).remove();

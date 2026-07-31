@@ -45,9 +45,12 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                                .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
-                        .requestMatchers("/api/v1/admin/**", "api/v1/users/**").authenticated()
-                                .anyRequest().denyAll())
+                        .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
+                        .requestMatchers(
+                                "/api/v1/admin/**",
+                                "/api/v1/users/**"
+                        ).authenticated()
+                        .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwtConfigurer -> jwtConfigurer
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter))
@@ -67,9 +70,15 @@ public class SecurityConfiguration {
                         .filter(origin -> !origin.isBlank())
                         .toList()
         );
-        configuration.setAllowedMethods(List.of("POST", "OPTIONS"));
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PATCH",
+                "OPTIONS"
+        ));
         configuration.setAllowedHeaders(List.of(
                 "Accept",
+                "Authorization",
                 "Content-Type",
                 "Origin"
         ));
@@ -79,6 +88,10 @@ public class SecurityConfiguration {
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration(
                 "/api/v1/registrations",
+                configuration
+        );
+        source.registerCorsConfiguration(
+                "/api/v1/users/**",
                 configuration
         );
         return source;
