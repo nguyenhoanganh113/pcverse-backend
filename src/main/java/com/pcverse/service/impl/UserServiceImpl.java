@@ -553,7 +553,21 @@ public class UserServiceImpl implements UserService {
     }
 
     private User syncIdentityFromToken(User user, String username, String email) {
-        user.setEmail(email);
+
+        // Kiểm tra nếu email hiện tại của user trong client db khác với email trong access token
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+
+            // Lấy email trong keycloak db của user đang xét
+            String keycloakEmail = keycloakAdminService.getUserEmail(
+                    requireKeycloakId(user)
+            );
+
+            // Nếu email trong keycloak db khác với email trong access token
+            // thì mới cập nhật client db thành email trong access token
+            if (keycloakEmail.equalsIgnoreCase(email)) {
+                user.setEmail(email);
+            }
+        }
         user.setUsername(username);
 
         try {

@@ -2,6 +2,7 @@ package com.pcverse.enums;
 
 public enum KeycloakRequiredAction {
     VERIFY_EMAIL("VERIFY_EMAIL"),
+    UPDATE_EMAIL("UPDATE_EMAIL"),
     UPDATE_PASSWORD("UPDATE_PASSWORD"),
     CONFIGURE_TOTP("CONFIGURE_TOTP"),
     UPDATE_PROFILE("UPDATE_PROFILE"),

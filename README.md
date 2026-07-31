@@ -51,6 +51,8 @@ KEYCLOAK_ADMIN_PASSWORD=admin
 KEYCLOAK_ADMIN_CLIENT_ID=pc-verse-admin
 KEYCLOAK_ADMIN_CLIENT_SECRET=replace-after-creating-the-admin-client
 KEYCLOAK_RESOURCE_CLIENT_ID=pc-verse-backend
+KEYCLOAK_ACTION_CLIENT_ID=pc-verse-frontend
+KEYCLOAK_ACTION_REDIRECT_URI=https://oauth.pstmn.io/v1/callback
 
 MAIL_USERNAME=
 MAIL_PASSWORD=
@@ -187,16 +189,27 @@ For Postman development, the callback is:
 https://oauth.pstmn.io/v1/callback
 ```
 
+Under **Authentication → Required actions**, enable `UPDATE_EMAIL`. Enable
+**Force Email Verification** for the action so Keycloak does not replace the
+current email until the new address has been verified. Configure **Maximum Age
+of Authentication** there as well; `0` forces reauthentication for every email
+change.
+
 The frontend must use Authorization Code Flow with PKCE. It redirects the
 browser to Keycloak and never handles the user's password directly.
 
 ### Backend resource client
 
-Create the resource client `pc-verse-backend` and add the client roles used by
-the API, including:
+Create the resource client `pc-verse-backend` and add client roles that
+represent API permissions. The self-service user endpoints currently require:
 
-- `ADMIN`
-- `CUSTOMER`
+- `PROFILE_READ_SELF`
+- `PROFILE_UPDATE_SELF`
+
+Keep `ADMIN` and `CUSTOMER` as realm composite roles. Associate the appropriate
+`pc-verse-backend` permission roles with those realm roles; for example,
+`CUSTOMER` should inherit the self-service permissions above. After
+changing role mappings, obtain a new access token before testing.
 
 Configure the frontend client/client scopes so issued access tokens contain:
 
@@ -217,6 +230,13 @@ Grant its service-account user these `realm-management` client roles:
 
 Copy the generated client secret to
 `KEYCLOAK_ADMIN_CLIENT_SECRET` in `.env`.
+
+`KEYCLOAK_ACTION_CLIENT_ID` and `KEYCLOAK_ACTION_REDIRECT_URI` are backend
+settings used only when an administrator sends a required-action email through
+the Admin API. The redirect URI must also be registered in the selected action
+client's **Valid redirect URIs**. They are not used when the frontend starts an
+AIA directly. Replace the Postman callback with the exact frontend callback URI
+outside local API testing.
 
 The application uses the official `org.keycloak:keycloak-admin-client` library
 with the OAuth 2.0 client-credentials grant. The Admin Client is used for
@@ -372,6 +392,58 @@ FE
 → backend validates the JWT
 ```
 
+### Self-service profile API
+
+| Method | Endpoint | Required client role | Operation |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/users/me` | `PROFILE_READ_SELF` | Load the current local profile and synchronize identity claims |
+| `PATCH` | `/api/v1/users/me` | `PROFILE_UPDATE_SELF` | Partially update the current user's profile |
+
+The `PATCH` request may contain `firstName`, `lastName`, `phoneNumber`, `gender`,
+`dateOfBirth`, and `urlAvatar`. Email is deliberately excluded because Keycloak
+owns the verified login email and changes it through the AIA flow below.
+
+### Self-service email change
+
+The backend intentionally does not expose a
+`/api/v1/users/me/email-change` endpoint. When a signed-in user selects
+**Change email**, the frontend starts Keycloak's `UPDATE_EMAIL` Application
+Initiated Action (AIA) directly:
+
+```ts
+keycloak.login({
+  action: "UPDATE_EMAIL",
+  redirectUri: `${window.location.origin}/profile/email-change/callback`,
+});
+```
+
+The callback URI must be registered as an exact **Valid redirect URI** of
+`pc-verse-frontend`. Keycloak handles reauthentication, the new-email form,
+pending verification, and the verification email. The application never
+receives the user's password.
+
+After Keycloak redirects back to the frontend, the frontend must obtain a fresh
+access token and reload the local profile:
+
+```ts
+await keycloak.updateToken(-1);
+
+await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+  headers: {
+    Authorization: `Bearer ${keycloak.token}`,
+  },
+});
+```
+
+`updateToken(-1)` forces a token refresh. The subsequent `/me` request updates
+the local email only when the token email matches the current email returned by
+Keycloak. This prevents an access token issued before the change from restoring
+the old email in the application database.
+
+Until a PCVerse frontend exists, test the same behavior through Keycloak's
+Account Console, obtain a new `pc-verse-frontend` access token, and call
+`GET /api/v1/users/me` manually.
+
 When an authenticated user calls:
 
 ```http
@@ -381,14 +453,21 @@ Authorization: Bearer <access-token>
 
 the backend:
 
-1. Finds the local user by Keycloak subject (`sub`).
-2. Otherwise finds the local user by verified email and links the Keycloak ID.
-3. Otherwise creates a local user from the token and assigns `CUSTOMER`.
+1. Requires non-empty `sub`, `email`, and `preferred_username` claims and
+   requires `email_verified=true`.
+2. Finds the local user by Keycloak subject (`sub`).
+3. Otherwise finds the local user by verified email and links the Keycloak ID.
+4. Otherwise creates a local user from the token and assigns the local
+   `CUSTOMER` role.
+5. For an existing user, synchronizes the username and accepts a changed email
+   only when it matches the user's current email in Keycloak.
 
 For users created from an Identity Provider, `phoneNumber`, `gender`, and
-`dateOfBirth` may be `null`. The access token used for the first `/me` request
-was issued before the `CUSTOMER` role was assigned, so refresh the token or sign
-in again before calling an endpoint that requires that new role.
+`dateOfBirth` may be `null`. Before the first `/me` request, Keycloak must grant
+the required self-service client permissions, normally by assigning the
+`CUSTOMER` realm role as a default role and making it a composite of those
+permissions. The local provisioning code does not add Keycloak roles. Obtain a
+new access token after changing any Keycloak role or composite mapping.
 
 ## Creating users through the backend Admin API
 
@@ -442,27 +521,32 @@ Content-Type: application/json
 }
 ```
 
+This is an administrative flow. It is not used by the self-service
+**Change email** button, which uses AIA directly from the frontend.
+
 ## Admin User API
 
-All administration endpoints require a JWT containing the `ADMIN` role for the
-`pc-verse-backend` client:
+Administration endpoints authorize the permission roles under
+`resource_access.pc-verse-backend.roles`. The `ADMIN` realm role should be a
+composite containing these client roles; the backend does not authorize an
+endpoint merely because `realm_access.roles` contains `ADMIN`.
 
-| Method | Endpoint | Operation |
-| --- | --- | --- |
-| `GET` | `/api/v1/admin/users/search` | Search and paginate local users |
-| `GET` | `/api/v1/admin/users/{userId}` | Get a local user |
-| `POST` | `/api/v1/admin/users` | Create the Keycloak identity and local profile |
-| `PUT` | `/api/v1/admin/users/{userId}` | Update the user in Keycloak and the database |
-| `DELETE` | `/api/v1/admin/users/{userId}` | Delete the user from Keycloak and the database |
-| `PUT` | `/api/v1/admin/users/{userId}/password` | Reset the Keycloak password |
-| `POST` | `/api/v1/admin/users/{userId}/roles` | Assign a client role in Keycloak and the database |
-| `DELETE` | `/api/v1/admin/users/{userId}/roles/{roleName}` | Remove a client role |
-| `PATCH` | `/api/v1/admin/users/{userId}/status` | Enable or disable the Keycloak user |
-| `POST` | `/api/v1/admin/users/{userId}/logout` | Terminate all Keycloak sessions |
-| `GET` | `/api/v1/admin/users/{userId}/sessions` | List Keycloak sessions |
-| `DELETE` | `/api/v1/admin/users/{userId}/sessions/{sessionId}` | Terminate one Keycloak session |
-| `POST` | `/api/v1/admin/users/{userId}/required-actions-email` | Email one or more required actions |
-| `PUT` | `/api/v1/admin/users/{userId}/required-actions` | Replace pending required actions |
+| Method | Endpoint | Required client role | Operation |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/admin/users/search` | `USER_READ` | Search and paginate local users |
+| `GET` | `/api/v1/admin/users/{userId}` | `USER_READ` | Get a local user |
+| `POST` | `/api/v1/admin/users` | `USER_CREATE` | Create the Keycloak identity and local profile |
+| `PUT` | `/api/v1/admin/users/{userId}` | `USER_UPDATE` | Update the user in Keycloak and the database |
+| `DELETE` | `/api/v1/admin/users/{userId}` | `USER_DELETE` | Delete the user from Keycloak and the database |
+| `PUT` | `/api/v1/admin/users/{userId}/password` | `USER_PASSWORD_RESET` | Reset the Keycloak password |
+| `POST` | `/api/v1/admin/users/{userId}/roles` | `USER_ROLE_MANAGE` | Assign an application realm role in Keycloak and the database |
+| `DELETE` | `/api/v1/admin/users/{userId}/roles/{roleName}` | `USER_ROLE_MANAGE` | Remove an application realm role |
+| `PATCH` | `/api/v1/admin/users/{userId}/status` | `USER_STATUS_MANAGE` | Enable or disable the Keycloak user |
+| `POST` | `/api/v1/admin/users/{userId}/logout` | `USER_SESSION_TERMINATE` | Terminate all Keycloak sessions |
+| `GET` | `/api/v1/admin/users/{userId}/sessions` | `USER_SESSION_READ` | List Keycloak sessions |
+| `DELETE` | `/api/v1/admin/users/{userId}/sessions/{sessionId}` | `USER_SESSION_TERMINATE` | Terminate one Keycloak session |
+| `POST` | `/api/v1/admin/users/{userId}/required-actions-email` | `USER_REQUIRED_ACTION_MANAGE` | Email one or more required actions |
+| `PUT` | `/api/v1/admin/users/{userId}/required-actions` | `USER_REQUIRED_ACTION_MANAGE` | Replace pending required actions |
 
 ## Local themes and registration CORS
 

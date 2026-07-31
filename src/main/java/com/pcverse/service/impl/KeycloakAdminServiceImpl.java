@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -191,6 +192,28 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
         } catch (RuntimeException exception) {
             throw translateException(
                     "update user profile",
+                    keycloakUserId,
+                    exception
+            );
+        }
+    }
+
+    @Override
+    public String getUserEmail(String keycloakUserId) {
+        try {
+            String email = userResource(keycloakUserId)
+                    .toRepresentation()
+                    .getEmail();
+
+            if (email == null || email.isBlank()) {
+                log.error("Keycloak user {} does not have an email", keycloakUserId);
+                throw new AppException(ErrorCode.KEYCLOAK_ADMIN_API_ERROR);
+            }
+
+            return email.strip().toLowerCase(Locale.ROOT);
+        } catch (RuntimeException exception) {
+            throw translateException(
+                    "get user email",
                     keycloakUserId,
                     exception
             );
@@ -528,7 +551,12 @@ public class KeycloakAdminServiceImpl implements KeycloakAdminService {
             // PUT /admin/realms/{realm}/users/{user-id}/execute-actions-email
             realmResource.users()
                     .get(keycloakUserId)
-                    .executeActionsEmail(actionNames, lifespanSeconds);
+                    .executeActionsEmail(
+                            keycloakAdminProperties.actionClientId(),
+                            keycloakAdminProperties.actionRedirectUri(),
+                            lifespanSeconds,
+                            actionNames
+                    );
 
         } catch (WebApplicationException exception) {
             Integer status = exception.getResponse() == null
