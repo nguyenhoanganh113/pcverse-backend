@@ -26,6 +26,10 @@ public interface UserService {
 
     UserDetailsResponse updateMyProfile(Jwt jwt, UpdateMyProfileRequest request);
 
+    List<UserSessionResponse> getMySessions(Jwt jwt);
+
+    void terminateMySession(Jwt jwt, String sessionId);
+
     PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
 
     UserDetailsResponse getUserById(String userId);
