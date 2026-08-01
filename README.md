@@ -205,6 +205,10 @@ represent API permissions. The self-service user endpoints currently require:
 
 - `PROFILE_READ_SELF`
 - `PROFILE_UPDATE_SELF`
+- `ADDRESS_READ_SELF`
+- `ADDRESS_CREATE_SELF`
+- `ADDRESS_UPDATE_SELF`
+- `ADDRESS_DELETE_SELF`
 
 Keep `ADMIN` and `CUSTOMER` as realm composite roles. Associate the appropriate
 `pc-verse-backend` permission roles with those realm roles; for example,
@@ -402,6 +406,48 @@ FE
 The `PATCH` request may contain `firstName`, `lastName`, `phoneNumber`, `gender`,
 `dateOfBirth`, and `urlAvatar`. Email is deliberately excluded because Keycloak
 owns the verified login email and changes it through the AIA flow below.
+
+### Self-service address API
+
+| Method | Endpoint | Required client role | Operation |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/users/me/addresses` | `ADDRESS_READ_SELF` | List the current user's addresses |
+| `POST` | `/api/v1/users/me/addresses` | `ADDRESS_CREATE_SELF` | Add an address |
+| `PATCH` | `/api/v1/users/me/addresses/{addressId}` | `ADDRESS_UPDATE_SELF` | Partially update an owned address |
+| `DELETE` | `/api/v1/users/me/addresses/{addressId}` | `ADDRESS_DELETE_SELF` | Delete an owned address |
+
+The API derives the local user from the access token and never accepts a
+`userId` from the client. Update and delete queries match both `addressId` and
+the authenticated user's ID. A missing address and an address owned by another
+user both return `ADDRESS_NOT_FOUND` without revealing whether that ID exists.
+
+Create an address:
+
+```http
+POST /api/v1/users/me/addresses
+Authorization: Bearer <access-token>
+Content-Type: application/json
+
+{
+  "recipientName": "Nguyen Hoang Anh",
+  "recipientPhone": "0912985895",
+  "province": "Ha Noi",
+  "district": "Cau Giay",
+  "ward": "Dich Vong Hau",
+  "streetDetail": "123 Xuan Thuy",
+  "isDefault": true
+}
+```
+
+All fields except `streetDetail` and `isDefault` are required when creating an
+address. A `PATCH` request may contain any subset of these fields; sending a
+blank `streetDetail` clears it. An empty patch is rejected.
+
+The first address is always made the default. Setting `isDefault` to `true` on
+another address removes the default flag from the previous one. Sending
+`false` does not unset the current default without a replacement. When the
+default address is deleted, the most recently created remaining address is
+promoted automatically.
 
 ### Self-service email change
 

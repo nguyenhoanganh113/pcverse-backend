@@ -1,9 +1,11 @@
 package com.pcverse.repository;
 
 import com.pcverse.entity.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -22,6 +24,10 @@ public interface UserRepository extends
     Optional<User> findByEmailIgnoreCase(String email);
 
     Optional<User> findByKeycloakId(String keycloakId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT user FROM User user WHERE user.id = :userId")
+    Optional<User> findByIdForUpdate(@Param("userId") String userId);
 
     boolean existsByUsernameIgnoreCase(String username);
 
