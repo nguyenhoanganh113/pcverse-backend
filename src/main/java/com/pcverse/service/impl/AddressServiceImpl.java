@@ -111,7 +111,7 @@ public class AddressServiceImpl implements AddressService {
 
         if (!currentAddresses.isEmpty()) {
 
-            // Nếu List address empty thì return null còn nếu không trống thì lấy cái đầu tiên trong list để đặt làm default
+            // Danh sách còn địa chỉ nên chọn phần tử đầu tiên làm ứng viên default thay thế.
             Address replacement = firstOrNull(currentAddresses);
 
             // Kiểm tra đang xoá address default OR không có địa chỉ nào trong danh sách address là default
