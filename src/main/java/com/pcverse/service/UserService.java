@@ -5,6 +5,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
@@ -22,6 +23,8 @@ public interface UserService {
     CreateUserResponse createUser(CreateUserRequest request);
 
     UserDetailsResponse myInfo(Jwt jwt);
+
+    UserDetailsResponse updateMyProfile(Jwt jwt, UpdateMyProfileRequest request);
 
     PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
 

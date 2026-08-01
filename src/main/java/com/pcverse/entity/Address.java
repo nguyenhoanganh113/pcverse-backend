@@ -38,6 +38,7 @@ public class Address extends AbstractAuditingEntity {
 
     private String streetDetail;
 
-    private Boolean isDefault;
+    @Column(name = "is_default")
+    private Boolean isDefault = false;
 
 }

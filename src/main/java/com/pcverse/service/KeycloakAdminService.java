@@ -18,6 +18,10 @@ public interface KeycloakAdminService {
 
     void updateUser(String keycloakUserId, UpdateAdminUserRequest request);
 
+    void updateUserProfile(String keycloakUserId, String firstName, String lastName);
+
+    String getUserEmail(String keycloakUserId);
+
     boolean deleteUser(String keycloakUserId);
 
     void resetPassword(String keycloakUserId, String newPassword, boolean temporary);

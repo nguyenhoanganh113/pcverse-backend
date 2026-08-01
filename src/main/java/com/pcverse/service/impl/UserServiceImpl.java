@@ -5,6 +5,7 @@ import com.pcverse.dto.request.CreateUserRequest;
 import com.pcverse.dto.request.ResetUserPasswordRequest;
 import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
+import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
@@ -116,6 +117,59 @@ public class UserServiceImpl implements UserService {
         User user = ensureUserExistsFromToken(jwt);
 
         return userMapper.toUserDetailResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsResponse updateMyProfile(
+            Jwt jwt,
+            UpdateMyProfileRequest request
+    ) {
+        User user = ensureUserExistsFromToken(jwt);
+        String keycloakId = requireKeycloakId(user);
+
+        boolean keycloakProfileChanged = false;
+
+        if (request.firstName() != null) {
+            keycloakProfileChanged = !Objects.equals(
+                    user.getFirstName(),
+                    request.firstName()
+            );
+            user.setFirstName(request.firstName());
+        }
+
+        if (request.lastName() != null) {
+            keycloakProfileChanged = keycloakProfileChanged || !Objects.equals(
+                    user.getLastName(),
+                    request.lastName()
+            );
+            user.setLastName(request.lastName());
+        }
+
+        if (request.phoneNumber() != null) {
+            user.setPhoneNumber(nullIfBlank(request.phoneNumber()));
+        }
+        if (request.gender() != null) {
+            user.setGender(request.gender());
+        }
+        if (request.dateOfBirth() != null) {
+            user.setDateOfBirth(request.dateOfBirth());
+        }
+        if (request.urlAvatar() != null) {
+            user.setUrlAvatar(nullIfBlank(request.urlAvatar()));
+        }
+
+        User updatedUser = userRepository.saveAndFlush(user);
+
+        if (keycloakProfileChanged) {
+            keycloakAdminService.updateUserProfile(
+                    keycloakId,
+                    updatedUser.getFirstName(),
+                    updatedUser.getLastName()
+            );
+        }
+
+        return userMapper.toUserDetailResponse(updatedUser);
     }
 
     @Override
@@ -350,7 +404,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByKeycloakId(keycloakId) // Account Linking tự động theo keycloakId
                 .map(existingUser -> {
                     activateUserAfterEmailVerification(existingUser);
-                    return syncUserFromToken(existingUser, jwt, username, email);
+                    return syncIdentityFromToken(existingUser, username, email);
                 })
                 // Account Linking tự động theo Email
                 .orElseGet(() -> userRepository.findByEmailIgnoreCase(email)
@@ -358,7 +412,7 @@ public class UserServiceImpl implements UserService {
                             // Cập nhật status user từ PENDING -> ACTIVE
                             activateUserAfterEmailVerification(existingUser);
                             User linkedUser = linkExistingUser(existingUser, keycloakId, username);
-                            return syncUserFromToken(linkedUser, jwt, username, email);
+                            return syncIdentityFromToken(linkedUser, username, email);
                         })
                         .orElseGet(() -> createLocalUserFromToken(jwt, keycloakId, username, email)));
     }
@@ -498,11 +552,23 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private User syncUserFromToken(User user, Jwt jwt, String username, String email) {
-        user.setEmail(email);
+    private User syncIdentityFromToken(User user, String username, String email) {
+
+        // Kiểm tra nếu email hiện tại của user trong client db khác với email trong access token
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+
+            // Lấy email trong keycloak db của user đang xét
+            String keycloakEmail = keycloakAdminService.getUserEmail(
+                    requireKeycloakId(user)
+            );
+
+            // Nếu email trong keycloak db khác với email trong access token
+            // thì mới cập nhật client db thành email trong access token
+            if (keycloakEmail.equalsIgnoreCase(email)) {
+                user.setEmail(email);
+            }
+        }
         user.setUsername(username);
-        user.setFirstName(requiredClaim(jwt.getClaimAsString("given_name")));
-        user.setLastName(requiredClaim(jwt.getClaimAsString("family_name")));
 
         try {
             return userRepository.save(user);
@@ -592,5 +658,9 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.TOKEN_INVALID);
         }
         return claims.strip();
+    }
+
+    private String nullIfBlank(String value) {
+        return value.isBlank() ? null : value;
     }
 }

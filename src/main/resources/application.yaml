@@ -57,6 +57,8 @@ keycloak:
     realm: ${KEYCLOAK_ADMIN_REALM:pc-verse}
     client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
     client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+    action-client-id: ${KEYCLOAK_ACTION_CLIENT_ID:pc-verse-frontend}
+    action-redirect-uri: ${KEYCLOAK_ACTION_REDIRECT_URI:https://oauth.pstmn.io/v1/callback}
 
 security:
   token-revocation:

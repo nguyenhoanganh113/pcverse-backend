@@ -32,7 +32,8 @@ public enum ErrorCode {
     MISSING_LOGOUT_INFO(400, "Authorization header or refresh token is missing", HttpStatus.BAD_REQUEST),
     USER_ROLE_NOT_ASSIGNED(404,"Role is not assigned to this user", HttpStatus.NOT_FOUND),
     USER_SESSION_NOT_FOUND(404, "User session not found", HttpStatus.NOT_FOUND),
-    ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),;
+    ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),
+    ADDRESS_NOT_FOUND(404, "Address not found", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;

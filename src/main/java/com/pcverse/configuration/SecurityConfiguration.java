@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -37,6 +38,7 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            JwtDecoder jwtDecoder,
             JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -45,11 +47,15 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                                .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
-                        .requestMatchers("/api/v1/admin/**", "api/v1/users/**").authenticated()
-                                .anyRequest().denyAll())
+                        .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
+                        .requestMatchers(
+                                "/api/v1/admin/**",
+                                "/api/v1/users/**"
+                        ).authenticated()
+                        .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwtConfigurer -> jwtConfigurer
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter))
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -67,9 +73,16 @@ public class SecurityConfiguration {
                         .filter(origin -> !origin.isBlank())
                         .toList()
         );
-        configuration.setAllowedMethods(List.of("POST", "OPTIONS"));
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+        ));
         configuration.setAllowedHeaders(List.of(
                 "Accept",
+                "Authorization",
                 "Content-Type",
                 "Origin"
         ));
@@ -79,6 +92,10 @@ public class SecurityConfiguration {
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration(
                 "/api/v1/registrations",
+                configuration
+        );
+        source.registerCorsConfiguration(
+                "/api/v1/users/**",
                 configuration
         );
         return source;
