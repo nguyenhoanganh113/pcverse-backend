@@ -209,6 +209,8 @@ represent API permissions. The self-service user endpoints currently require:
 - `ADDRESS_CREATE_SELF`
 - `ADDRESS_UPDATE_SELF`
 - `ADDRESS_DELETE_SELF`
+- `SESSION_READ_SELF`
+- `SESSION_TERMINATE_SELF`
 
 Keep `ADMIN` and `CUSTOMER` as realm composite roles. Associate the appropriate
 `pc-verse-backend` permission roles with those realm roles; for example,
@@ -456,6 +458,10 @@ The backend intentionally does not expose a
 **Change email**, the frontend starts Keycloak's `UPDATE_EMAIL` Application
 Initiated Action (AIA) directly:
 
+See the [UPDATE_EMAIL AIA sequence diagram](docs/diagram/update-email-aia.svg)
+for the complete interaction between the user, frontend, Keycloak, email
+provider, and backend.
+
 ```ts
 keycloak.login({
   action: "UPDATE_EMAIL",
@@ -489,6 +495,81 @@ the old email in the application database.
 Until a PCVerse frontend exists, test the same behavior through Keycloak's
 Account Console, obtain a new `pc-verse-frontend` access token, and call
 `GET /api/v1/users/me` manually.
+
+### Self-service password change
+
+The backend intentionally does not accept a user's current or new password.
+When a signed-in user selects **Change password**, the frontend starts
+Keycloak's `UPDATE_PASSWORD` Application Initiated Action (AIA):
+
+See the
+[UPDATE_PASSWORD AIA sequence diagram](docs/diagram/update-password-aia.svg)
+for the complete browser flow and the boundary that keeps credentials out of
+the PCVerse backend.
+
+```ts
+export function startPasswordChange() {
+  return keycloak.login({
+    action: "UPDATE_PASSWORD",
+    redirectUri: `${window.location.origin}/profile/security`,
+  });
+}
+```
+
+The frontend button only calls this function. Keycloak performs the browser
+authentication flow, reauthentication, password-policy validation, credential
+update, and redirect back to the application. Do not send either password to a
+PCVerse backend endpoint and do not use the Keycloak Admin API for this
+self-service operation.
+
+Configure the `pc-verse` realm under **Authentication > Required actions >
+Update Password** as follows:
+
+- **Enabled**: On
+- **Default action**: Off
+- **Maximum Authentication Age**: `0`
+
+The zero maximum age makes Keycloak actively reauthenticate the user every time
+before changing the password. Keeping the action non-default prevents it from
+being forced on every newly registered user. The realm currently keeps the
+last three passwords in its password-history policy.
+
+Initialize `keycloak-js` with the standard Authorization Code Flow and PKCE
+S256. In **Clients > pc-verse-frontend**, keep **Standard flow** enabled,
+disable implicit and direct-access-grant flows, and set **PKCE method** to
+`S256` so the server also requires it. The exact redirect URI used above must
+be registered under **Valid redirect URIs**. For example, if the frontend runs
+at `http://localhost:4200`, register exactly:
+
+```text
+http://localhost:4200/profile/security
+```
+
+Also register the corresponding exact **Web origin** (`http://localhost:4200`
+in this example) so `keycloak-js` can exchange the authorization code from the
+browser. Replace these examples with the frontend's real origin and callback.
+
+Do not register a broad wildcard redirect for production. If the user has no
+SSO session, Keycloak first shows the login page and then the password form. If
+the user already has an SSO session, the configured maximum authentication age
+still forces active reauthentication before the password form. Completion or
+cancellation returns the browser to the registered frontend URI.
+
+### Self-service session API
+
+| Method | Endpoint | Required client role | Operation |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/users/me/sessions` | `SESSION_READ_SELF` | List the current user's active Keycloak sessions |
+| `DELETE` | `/api/v1/users/me/sessions/{sessionId}` | `SESSION_TERMINATE_SELF` | Terminate one session owned by the current user |
+
+Both endpoints derive the owner from the access token and never accept a
+`userId`. Before deleting a session, the backend verifies that Keycloak lists
+the supplied `sessionId` under the authenticated user's `sub`; an unknown or
+foreign session returns `USER_SESSION_NOT_FOUND`. Before deleting the Keycloak
+session, the backend stores its ID in Redis so access tokens previously issued
+for that session are rejected even if the subsequent Keycloak deletion fails.
+Deleting the current session allows the delete response to complete, but later
+requests using its access token return `401`.
 
 When an authenticated user calls:
 

@@ -6,6 +6,7 @@ import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.response.AddressResponse;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
+import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.service.AddressService;
 import com.pcverse.service.UserService;
 import jakarta.validation.Valid;
@@ -50,6 +51,34 @@ public class UserController {
                 .code(HttpStatus.OK.value())
                 .message("Profile updated successfully")
                 .data(data)
+                .build();
+    }
+
+    @GetMapping("/me/sessions")
+    @PreAuthorize("hasAuthority('ROLE_SESSION_READ_SELF')")
+    ApiResponse<List<UserSessionResponse>> getMySessions(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        List<UserSessionResponse> data = userService.getMySessions(jwt);
+
+        return ApiResponse.<List<UserSessionResponse>>builder()
+                .code(HttpStatus.OK.value())
+                .message("Sessions retrieved successfully")
+                .data(data)
+                .build();
+    }
+
+    @DeleteMapping("/me/sessions/{sessionId}")
+    @PreAuthorize("hasAuthority('ROLE_SESSION_TERMINATE_SELF')")
+    ApiResponse<Void> terminateMySession(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String sessionId
+    ) {
+        userService.terminateMySession(jwt, sessionId);
+
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .message("Session terminated successfully")
                 .build();
     }
 

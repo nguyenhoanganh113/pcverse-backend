@@ -173,6 +173,25 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
+    public List<UserSessionResponse> getMySessions(Jwt jwt) {
+        User user = ensureUserExistsFromToken(jwt);
+
+        return keycloakAdminService.getUserSessions(requireKeycloakId(user));
+    }
+
+    @Override
+    @Transactional
+    public void terminateMySession(Jwt jwt, String sessionId) {
+        User user = ensureUserExistsFromToken(jwt);
+
+        terminateKeycloakSession(
+                requireKeycloakId(user),
+                sessionId
+        );
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
 
@@ -484,7 +503,16 @@ public class UserServiceImpl implements UserService {
 
         requireUserNotDeleted(user);
 
-        String keycloakId = requireKeycloakId(user);
+        terminateKeycloakSession(
+                requireKeycloakId(user),
+                sessionId
+        );
+    }
+
+    private void terminateKeycloakSession(
+            String keycloakId,
+            String sessionId
+    ) {
         boolean sessionBelongsToUser = keycloakAdminService.getUserSessions(keycloakId)
                 .stream()
                 .anyMatch(session -> sessionId.equals(session.sessionId()));
@@ -493,8 +521,8 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.USER_SESSION_NOT_FOUND);
         }
 
-        keycloakAdminService.deleteUserSession(sessionId);
         redisTokenService.revokeUserSession(sessionId);
+        keycloakAdminService.deleteUserSession(sessionId);
     }
 
     @Override
