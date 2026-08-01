@@ -565,10 +565,11 @@ cancellation returns the browser to the registered frontend URI.
 Both endpoints derive the owner from the access token and never accept a
 `userId`. Before deleting a session, the backend verifies that Keycloak lists
 the supplied `sessionId` under the authenticated user's `sub`; an unknown or
-foreign session returns `USER_SESSION_NOT_FOUND`. After deletion, the backend
-also stores the session ID in Redis so access tokens previously issued for
-that session are rejected. Deleting the current session allows the delete
-response to complete, but later requests using its access token return `401`.
+foreign session returns `USER_SESSION_NOT_FOUND`. Before deleting the Keycloak
+session, the backend stores its ID in Redis so access tokens previously issued
+for that session are rejected even if the subsequent Keycloak deletion fails.
+Deleting the current session allows the delete response to complete, but later
+requests using its access token return `401`.
 
 When an authenticated user calls:
 
