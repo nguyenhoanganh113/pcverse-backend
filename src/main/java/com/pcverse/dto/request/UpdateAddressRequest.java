@@ -42,6 +42,7 @@ public record UpdateAddressRequest(
         streetDetail = trim(streetDetail);
     }
 
+    @SuppressWarnings("unused")
     @JsonIgnore
     @AssertTrue(message = "At least one address field must be provided")
     public boolean isAnyFieldPresent() {
