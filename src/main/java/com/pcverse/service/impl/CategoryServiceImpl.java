@@ -1,22 +1,30 @@
 package com.pcverse.service.impl;
 
+import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
-import com.pcverse.dto.request.UpdateCategoryResponse;
+import com.pcverse.dto.response.PaginationResponse;
+import com.pcverse.dto.response.UpdateCategoryResponse;
 import com.pcverse.dto.response.CategoryDetailResponse;
 import com.pcverse.dto.response.CreateCategoryResponse;
 import com.pcverse.entity.Category;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
+import com.pcverse.mapper.CategoryMapper;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.service.CategoryService;
+import com.pcverse.specification.CategorySpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
 import java.util.List;
@@ -28,6 +36,7 @@ import java.util.Locale;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final CategoryMapper categoryMapper;
 
     @Override
     @Transactional
@@ -55,28 +64,68 @@ public class CategoryServiceImpl implements CategoryService {
                 .description(category.getDescription())
                 .createdAt(category.getCreatedAt())
                 .build();
-
     }
 
     @Override
-    public List<CategoryDetailResponse> getCategories(boolean active) {
-        return categoryRepository.findAllByActive(active)
+    @Transactional(readOnly = true)
+    public PaginationResponse<CategoryDetailResponse> searchCategories(CategorySearchRequest categorySearchRequest, Pageable pageable) {
+        Specification<Category> specification =
+                switch (categorySearchRequest.searchType()) {
+                    case DEFAULT ->
+                            CategorySpecification.hasKeyword(
+                                    categorySearchRequest.keyword()
+                            );
+
+                    case ATTRIBUTE -> {
+
+                        // Nếu chọn attribute seach thì phải điền đủ field lẫn value muốn search
+                        validateAttributeSearch(categorySearchRequest);
+
+                        yield CategorySpecification.hasAttribute(
+                                categorySearchRequest.field(),
+                                categorySearchRequest.value(),
+                                categorySearchRequest.exact()
+                        );
+                    }
+                };
+        Page<Category> categoryPage = categoryRepository.findAll(
+                specification,
+                pageable
+        );
+
+        List<CategoryDetailResponse> categories = categoryPage
+                .getContent()
                 .stream()
-                .map(category -> CategoryDetailResponse.builder()
-                        .id(category.getId())
-                        .name(category.getName())
-                        .slug(category.getSlug())
-                        .description(category.getDescription())
-                        .active(category.isActive())
-                        .createdAt(category.getCreatedAt())
-                        .build())
+                .map(categoryMapper::toCategoryDetailResponse)
                 .toList();
+
+        return PaginationResponse.<CategoryDetailResponse>builder()
+                .currentPage(categoryPage.getNumber())
+                .size(categoryPage.getSize())
+                .totalPages(categoryPage.getTotalPages())
+                .totalElements(categoryPage.getTotalElements())
+                .data(categories)
+                .build();
+    }
+
+    @Override
+    public CategoryDetailResponse getCategory(String id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        return CategoryDetailResponse.builder()
+                .id(category.getId())
+                .name(category.getName())
+                .slug(category.getSlug())
+                .description(category.getDescription())
+                .active(category.isActive())
+                .createdAt(category.getCreatedAt())
+                .build();
     }
 
     @Override
     @Transactional
     public UpdateCategoryResponse updateCategory(String id, UpdateCategoryRequest request) {
-        Category category = findActiveCategory(id);
+        Category category = findCategory(id);
 
         if (request.isNamePresent()) {
             // Kiểm tra nếu name thuộc rq dto mà null hoặc empty throw exception
@@ -103,7 +152,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(category.getName())
                 .slug(category.getSlug())
                 .description(category.getDescription())
-                .createdAt(category.getCreatedAt())
+                .updatedAt(category.getLastModifiedAt())
                 .build();
 
     }
@@ -132,8 +181,8 @@ public class CategoryServiceImpl implements CategoryService {
         log.info("Category {} soft-deleted successfully", id);
     }
 
-    private Category findActiveCategory(String id) {
-        return categoryRepository.findByIdAndActiveTrue(id)
+    private Category findCategory(String id) {
+        return categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
     }
 
@@ -184,5 +233,19 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         return false;
+    }
+
+    private void validateAttributeSearch(CategorySearchRequest request) {
+        if (request.field() == null) {
+            throw new AppException(
+                    ErrorCode.CATEGORY_SEARCH_FIELD_REQUIRED
+            );
+        }
+
+        if (!StringUtils.hasText(request.value())) {
+            throw new AppException(
+                    ErrorCode.CATEGORY_SEARCH_VALUE_REQUIRED
+            );
+        }
     }
 }

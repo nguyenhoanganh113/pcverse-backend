@@ -1,25 +1,25 @@
 package com.pcverse.controller;
 
+import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
-import com.pcverse.dto.request.UpdateCategoryResponse;
-import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.CategoryDetailResponse;
-import com.pcverse.dto.response.CreateCategoryResponse;
+import com.pcverse.dto.response.*;
 import com.pcverse.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/admin/categories")
 @Validated
+@PreAuthorize("denyAll()")
 public class AdminCategoryController {
 
     private final CategoryService categoryService;
@@ -36,15 +36,33 @@ public class AdminCategoryController {
                 .build();
     }
 
-    @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_CATEGORY_READ')")
-    ApiResponse<List<CategoryDetailResponse>> getCategories(
-            @RequestParam(defaultValue = "true") boolean active
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('ROLE_CATEGORY_VIEW')")
+    ApiResponse<PaginationResponse<CategoryDetailResponse>> searchCategory(
+            @ModelAttribute CategorySearchRequest categorySearchRequest,
+            @PageableDefault(
+                    size = 20,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            )
+            Pageable pageable
     ) {
-        var data = categoryService.getCategories(active);
-        return ApiResponse.<List<CategoryDetailResponse>>builder()
+        var data = categoryService.searchCategories(categorySearchRequest, pageable);
+        return ApiResponse.<PaginationResponse<CategoryDetailResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Categories retrieved successfully")
+                .data(data)
+                .build();
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_CATEGORY_READ')")
+    ApiResponse<CategoryDetailResponse> getCategory(@PathVariable String id) {
+        var data = categoryService.getCategory(id);
+
+        return ApiResponse.<CategoryDetailResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Category retrieved successfully")
                 .data(data)
                 .build();
     }

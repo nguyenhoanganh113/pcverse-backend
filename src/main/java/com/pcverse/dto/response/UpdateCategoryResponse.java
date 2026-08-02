@@ -1,4 +1,4 @@
-package com.pcverse.dto.request;
+package com.pcverse.dto.response;
 
 import lombok.Builder;
 
@@ -10,6 +10,6 @@ public record UpdateCategoryResponse(
         String name,
         String slug,
         String description,
-        Instant createdAt
+        Instant updatedAt
 ) {
 }
