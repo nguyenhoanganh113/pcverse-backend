@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -52,6 +53,10 @@ public class Category extends AbstractAuditingEntity {
     @OneToMany(mappedBy = "category")
     @Builder.Default
     private List<Product> products = new ArrayList<>();
+
+    @Version
+    @Column(nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private long version;
 
     @Column(nullable = false)
     @Builder.Default

@@ -10,6 +10,7 @@ public enum ErrorCode {
 
     INTERNAL_ERROR(500, "Unexpected error occurred while processing request in backend service", HttpStatus.INTERNAL_SERVER_ERROR),
     VALIDATION_ERROR(400, "Invalid request data", HttpStatus.BAD_REQUEST),
+    UNSUPPORTED_MEDIA_TYPE(415, "Unsupported request Content-Type", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     USER_ALREADY_EXISTS(409, "User already exists", HttpStatus.CONFLICT),
     USER_NOT_FOUND(404,"User not found", HttpStatus.NOT_FOUND),
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
@@ -33,7 +34,16 @@ public enum ErrorCode {
     USER_ROLE_NOT_ASSIGNED(404,"Role is not assigned to this user", HttpStatus.NOT_FOUND),
     USER_SESSION_NOT_FOUND(404, "User session not found", HttpStatus.NOT_FOUND),
     ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),
-    ADDRESS_NOT_FOUND(404, "Address not found", HttpStatus.NOT_FOUND);
+    ADDRESS_NOT_FOUND(404, "Address not found", HttpStatus.NOT_FOUND),
+    CATEGORY_EXISTED(409, "Category already existed", HttpStatus.CONFLICT),
+    CATEGORY_CONCURRENT_MODIFICATION(
+            409,
+            "Category was modified by another request. Please retry",
+            HttpStatus.CONFLICT
+    ),
+    CATEGORY_NAME_REQUIRED(400, "Category name must not be null or blank", HttpStatus.BAD_REQUEST),
+    CATEGORY_NAME_INVALID(400, "Category name must produce a non-empty slug", HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_FOUND(404, "Category not found", HttpStatus.NOT_FOUND);
 
     private final int code;
     private final String message;

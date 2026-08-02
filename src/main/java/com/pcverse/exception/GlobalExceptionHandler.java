@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +42,20 @@ public class GlobalExceptionHandler {
         ErrorResponse response = buildErrorCodeResponse(errorCode, request, null);
 
         return ResponseEntity.status(errorCode.getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupportedException(
+            HttpMediaTypeNotSupportedException ex,
+            WebRequest request
+    ) {
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                request,
+                null
+        );
+
+        return ResponseEntity.status(ErrorCode.UNSUPPORTED_MEDIA_TYPE.getHttpStatus()).body(response);
     }
 
     @ExceptionHandler(Exception.class)
@@ -156,6 +171,14 @@ public class GlobalExceptionHandler {
     }
 
     private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {
+        UnknownJsonFieldException unknownFieldException = findCause(e, UnknownJsonFieldException.class);
+        if (unknownFieldException != null) {
+            String fieldName = unknownFieldException.getFieldName();
+            return new FieldErrorResponse(fieldName,
+                    "Unknown field '" + fieldName + "'"
+            );
+        }
+
         Throwable cause = e.getCause();
 
         if (cause instanceof InvalidFormatException invalidFormatException
@@ -173,6 +196,20 @@ public class GlobalExceptionHandler {
         }
 
         return new FieldErrorResponse("requestBody", "Invalid request body or JSON format");
+    }
+
+    private <T extends Throwable> T findCause(Throwable throwable, Class<T> causeType) {
+        Throwable cause = throwable;
+
+        while (cause != null) {
+            if (causeType.isInstance(cause)) {
+                return causeType.cast(cause);
+            }
+
+            cause = cause.getCause();
+        }
+
+        return null;
     }
 
     private String extractFieldName(JacksonException exception) {
