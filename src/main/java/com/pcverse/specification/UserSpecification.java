@@ -1,180 +1,160 @@
 package com.pcverse.specification;
 
-import com.pcverse.dto.request.AdminUserSearchRequest;
 import com.pcverse.entity.User;
-import com.pcverse.enums.UserSearchMode;
+import com.pcverse.enums.Gender;
+import com.pcverse.enums.UserSearchField;
 import com.pcverse.enums.UserStatus;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
+import lombok.experimental.UtilityClass;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
-public final class UserSpecification {
+@UtilityClass
+public class UserSpecification {
 
-    private UserSpecification() {
-    }
+    /**
+     * Default Search:
+     * Một keyword tìm đồng thời trên nhiều field bằng OR.
+     */
+    public Specification<User> hasKeyword(String keyword) {
+        return (root, query, cb) -> {
 
-    public static Specification<User> filter(
-            AdminUserSearchRequest request
-    ) {
-        return (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (request == null) {
-                predicates.add(criteriaBuilder.notEqual(
-                        root.get("userStatus"),
-                        UserStatus.DELETED
-                ));
-                return criteriaBuilder.and(
-                        predicates.toArray(Predicate[]::new)
-                );
+            if (!StringUtils.hasText(keyword)) {
+                return cb.conjunction();
             }
 
-            if (request.mode() != UserSearchMode.ATTRIBUTE
-                    || request.userStatus() != UserStatus.DELETED) {
-                predicates.add(criteriaBuilder.notEqual(
-                        root.get("userStatus"),
-                        UserStatus.DELETED
-                ));
-            }
+            String normalizedKeyword = keyword
+                    .trim()
+                    .toLowerCase(Locale.ROOT);
 
-            boolean exact = Boolean.TRUE.equals(request.exact());
+            String pattern = "%"
+                    + escapeLikePattern(normalizedKeyword)
+                    + "%";
 
-            if (request.mode() == UserSearchMode.ATTRIBUTE) {
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "username",
-                        request.username(),
-                        exact
-                );
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "email",
-                        request.email(),
-                        exact
-                );
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "firstName",
-                        request.firstName(),
-                        exact
-                );
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "lastName",
-                        request.lastName(),
-                        exact
-                );
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "phoneNumber",
-                        request.phoneNumber(),
-                        exact
-                );
-                addAttributePredicates(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        request
-                );
-            } else {
-                addTextPredicate(
-                        predicates,
-                        root,
-                        criteriaBuilder,
-                        "username",
-                        request.search(),
-                        exact
-                );
-            }
-
-            return criteriaBuilder.and(
-                    predicates.toArray(Predicate[]::new)
+            return cb.or(
+                    cb.like(
+                            cb.lower(root.get("username")),
+                            pattern,
+                            '\\'
+                    ),
+                    cb.like(
+                            cb.lower(root.get("email")),
+                            pattern,
+                            '\\'
+                    ),
+                    cb.like(
+                            cb.lower(root.get("firstName")),
+                            pattern,
+                            '\\'
+                    ),
+                    cb.like(
+                            cb.lower(root.get("lastName")),
+                            pattern,
+                            '\\'
+                    ),
+                    cb.like(
+                            cb.lower(root.get("phoneNumber")),
+                            pattern,
+                            '\\'
+                    )
             );
         };
     }
 
-    private static void addAttributePredicates(
-            List<Predicate> predicates,
-            Root<User> root,
-            CriteriaBuilder criteriaBuilder,
-            AdminUserSearchRequest request
+    /**
+     * Attribute Search:
+     * Chỉ tìm kiếm trên đúng một field mà user đã chọn.
+     */
+    public Specification<User> hasAttribute(
+            UserSearchField field,
+            String value,
+            boolean exact
     ) {
-        if (request.gender() != null) {
-            predicates.add(criteriaBuilder.equal(
-                    root.get("gender"),
-                    request.gender()
-            ));
-        }
+        return (root, query, cb) -> {
 
-        if (request.userStatus() != null) {
-            predicates.add(criteriaBuilder.equal(
-                    root.get("userStatus"),
-                    request.userStatus()
-            ));
-        }
+            if(!StringUtils.hasText(value) || field == null) {
+                return cb.conjunction();
+            }
 
-        if (request.dateOfBirthFrom() != null) {
-            predicates.add(criteriaBuilder.greaterThanOrEqualTo(
-                    root.<LocalDate>get("dateOfBirth"),
-                    request.dateOfBirthFrom()
-            ));
-        }
-
-        if (request.dateOfBirthTo() != null) {
-            predicates.add(criteriaBuilder.lessThanOrEqualTo(
-                    root.<LocalDate>get("dateOfBirth"),
-                    request.dateOfBirthTo()
-            ));
-        }
+            return switch (field) {
+                case USERNAME,
+                     EMAIL,
+                     FIRST_NAME,
+                     LAST_NAME,
+                     PHONE_NUMBER -> {
+                    Expression<String> attributeExpression =
+                            cb.lower(
+                                    root.get(field.path())
+                            );
+                    yield createTextPredicate(
+                            cb,
+                            attributeExpression,
+                            value,
+                            exact
+                    );
+                }
+                case GENDER -> cb.equal(
+                        root.get(field.path()),
+                        parseEnum(Gender.class, value)
+                );
+                case USER_STATUS -> cb.equal(
+                        root.get(field.path()),
+                        parseEnum(UserStatus.class, value)
+                );
+                case DATE_OF_BIRTH -> cb.equal(
+                        root.<LocalDate>get(field.path()),
+                        LocalDate.parse(value.trim())
+                );
+            };
+        };
     }
 
-    private static void addTextPredicate(
-            List<Predicate> predicates,
-            Root<User> root,
-            CriteriaBuilder criteriaBuilder,
-            String field,
+    /**
+     * Loại user đã soft delete khỏi kết quả.
+     */
+    public Specification<User> isNotDeleted() {
+        return (root, query, cb) ->
+                cb.notEqual(
+                        root.get("userStatus"),
+                        UserStatus.DELETED
+                );
+    }
+
+    private Predicate createTextPredicate(
+            CriteriaBuilder cb,
+            Expression<String> attributeExpression,
             String value,
             boolean exact
     ) {
         String normalizedValue = normalize(value);
-        if (normalizedValue == null) {
-            return;
-        }
-
-        Expression<String> normalizedField = criteriaBuilder.lower(
-                root.get(field)
-        );
 
         if (exact) {
-            predicates.add(criteriaBuilder.equal(
-                    normalizedField,
+            return cb.equal(
+                    attributeExpression,
                     normalizedValue
-            ));
-            return;
+            );
         }
 
-        predicates.add(criteriaBuilder.like(
-                normalizedField,
-                "%" + escapeLikePattern(normalizedValue) + "%",
-                '\\'
-        ));
+        String pattern = "%"
+                + escapeLikePattern(normalizedValue)
+                + "%";
+
+        return cb.like(attributeExpression, pattern, '\\');
+    }
+
+    private <E extends Enum<E>> E parseEnum(
+            Class<E> enumClass,
+            String value
+    ) {
+        return Enum.valueOf(
+                enumClass,
+                value.trim().toUpperCase(Locale.ROOT)
+        );
     }
 
     private static String normalize(String value) {

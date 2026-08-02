@@ -14,6 +14,8 @@ import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
+import com.pcverse.enums.SearchType;
+import com.pcverse.enums.UserSearchField;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.event.UserDeletedEvent;
 import com.pcverse.event.UserEmailChangedEvent;
@@ -33,9 +35,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -193,16 +197,50 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+    public PaginationResponse<UserDetailsResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+        Specification<User> searchSpecification =
+                switch (searchRequest.searchType()) {
 
-        // Lấy danh sách user của page hiện tại theo các điều kiện tìm kiếm
-        Page<User> userPage = userRepository.findAll(UserSpecification.filter(searchRequest), pageable);
+                    case DEFAULT ->
+                            UserSpecification.hasKeyword(
+                                    searchRequest.keyword()
+                            );
+
+                    case ATTRIBUTE -> {
+                        validateAttributeSearch(searchRequest);
+
+                        yield UserSpecification.hasAttribute(
+                                searchRequest.field(),
+                                searchRequest.value(),
+                                searchRequest.exact()
+                        );
+                    }
+                };
+
+        Specification<User> specification = searchSpecification;
+
+        /*
+         * Mặc định không lấy user DELETED.
+         *
+         * Nhưng khi admin chủ động tìm:
+         * field=USER_STATUS&value=DELETED
+         * thì cho phép lấy user đã xóa.
+         */
+        if (!isSearchingDeletedUsers(searchRequest)) {
+            specification = UserSpecification
+                    .isNotDeleted()
+                    .and(searchSpecification);
+        }
+
+        Page<User> userPage = userRepository.findAll(
+                specification,
+                pageable
+        );
 
         if (userPage.isEmpty()) {
             return toPaginationResponse(userPage, List.of());
         }
 
-        // Lấy tất cả userId trong page hiện tại
         List<String> userIds = userPage.getContent()
                 .stream()
                 .map(User::getId)
@@ -226,6 +264,7 @@ public class UserServiceImpl implements UserService {
                 .toList();
 
         return toPaginationResponse(userPage, users);
+
     }
 
     private PaginationResponse<UserDetailsResponse> toPaginationResponse(
@@ -631,10 +670,37 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    private void validateAttributeSearch(
+            AdminUserSearchRequest request
+    ) {
+        if (request.field() == null) {
+            throw new AppException(
+                    ErrorCode.USER_SEARCH_FIELD_REQUIRED
+            );
+        }
+
+        if (!StringUtils.hasText(request.value())) {
+            throw new AppException(
+                    ErrorCode.USER_SEARCH_VALUE_REQUIRED
+            );
+        }
+    }
+
     private void validateUsernameAvailable(String username) {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
+    }
+
+    // Admin tìm các user đã soft delete
+    private boolean isSearchingDeletedUsers(
+            AdminUserSearchRequest request
+    ) {
+        return request.searchType() == SearchType.ATTRIBUTE
+                && request.field() == UserSearchField.USER_STATUS
+                && StringUtils.hasText(request.value())
+                && UserStatus.DELETED.name()
+                .equalsIgnoreCase(request.value().trim());
     }
 
     private void requireActiveUser(User user) {

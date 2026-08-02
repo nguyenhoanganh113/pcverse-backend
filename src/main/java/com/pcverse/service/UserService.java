@@ -30,7 +30,7 @@ public interface UserService {
 
     void terminateMySession(Jwt jwt, String sessionId);
 
-    PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
+    PaginationResponse<UserDetailsResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
 
     UserDetailsResponse getUserById(String userId);
 

@@ -33,8 +33,8 @@ public class AdminUserController {
     private final UserService userService;
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('ROLE_USER_READ')")
-    ApiResponse<PaginationResponse<UserDetailsResponse>> getAllUsers(
+    @PreAuthorize("hasAuthority('ROLE_USER_VIEW')")
+    ApiResponse<PaginationResponse<UserDetailsResponse>> searchUser(
             @Valid @ModelAttribute AdminUserSearchRequest searchRequest,
             @PageableDefault(
                     size = 20,
@@ -43,12 +43,11 @@ public class AdminUserController {
             )
             Pageable pageable
     ) {
-        PaginationResponse<UserDetailsResponse> users =
-                userService.getAllUsers(searchRequest, pageable);
+        PaginationResponse<UserDetailsResponse> users = userService.searchUsers(searchRequest, pageable);
 
         return ApiResponse.<PaginationResponse<UserDetailsResponse>>builder()
                 .code(HttpStatus.OK.value())
-                .message("Get all users successfully")
+                .message("Users retrieved successfully")
                 .data(users)
                 .build();
     }

@@ -13,6 +13,8 @@ public enum ErrorCode {
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported request Content-Type", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     USER_ALREADY_EXISTS(409, "User already exists", HttpStatus.CONFLICT),
     USER_NOT_FOUND(404,"User not found", HttpStatus.NOT_FOUND),
+    USER_SEARCH_FIELD_REQUIRED(400, "User search field is required", HttpStatus.BAD_REQUEST),
+    USER_SEARCH_VALUE_REQUIRED(400, "User search value is required", HttpStatus.BAD_REQUEST),
     TOKEN_INVALID(401, "Invalid token", HttpStatus.UNAUTHORIZED),
     TOKEN_EXPIRED(401, "Token is expired", HttpStatus.UNAUTHORIZED),
         TOKEN_REVOKED(401, "Token has been revoked", HttpStatus.UNAUTHORIZED),
@@ -43,7 +45,9 @@ public enum ErrorCode {
     ),
     CATEGORY_NAME_REQUIRED(400, "Category name must not be null or blank", HttpStatus.BAD_REQUEST),
     CATEGORY_NAME_INVALID(400, "Category name must produce a non-empty slug", HttpStatus.BAD_REQUEST),
-    CATEGORY_NOT_FOUND(404, "Category not found", HttpStatus.NOT_FOUND);
+    CATEGORY_NOT_FOUND(404, "Category not found", HttpStatus.NOT_FOUND),
+    CATEGORY_SEARCH_FIELD_REQUIRED(400, "Category search field is required", HttpStatus.BAD_REQUEST),
+    CATEGORY_SEARCH_VALUE_REQUIRED(400, "Category search value is required", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
