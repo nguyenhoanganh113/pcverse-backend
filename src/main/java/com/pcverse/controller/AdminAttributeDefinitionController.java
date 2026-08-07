@@ -2,6 +2,8 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.AttributeDefinitionSearchRequest;
 import com.pcverse.dto.request.CreateAttributeDefinitionRequest;
+import com.pcverse.dto.request.UpdateAttributeDefinitionRequest;
+import com.pcverse.dto.request.UpdateAttributeDefinitionStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.AttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
@@ -45,6 +47,53 @@ public class AdminAttributeDefinitionController {
                 .data(attributeDefinitionService.searchForAdmin(request, pageable))
                 .build();
     }
+
+    @GetMapping("/{id}")
+    public ApiResponse<AttributeDefinitionResponse> get(@PathVariable String id) {
+        return ApiResponse
+                .<AttributeDefinitionResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Attribute definition retrieved successfully")
+                .data(attributeDefinitionService.getById(id))
+                .build();
+    }
+
+    @PatchMapping("/{id}")
+    public ApiResponse<AttributeDefinitionResponse> update(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateAttributeDefinitionRequest request
+    ) {
+        var data = attributeDefinitionService.update(id, request);
+        return ApiResponse.<AttributeDefinitionResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Attribute definition updated successfully")
+                .data(data)
+                .build();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ApiResponse<AttributeDefinitionResponse> updateStatus(
+            @PathVariable String id,
+            @RequestParam UpdateAttributeDefinitionStatusRequest request
+    ) {
+        var data = attributeDefinitionService.updateStatus(id, request);
+        return ApiResponse.<AttributeDefinitionResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Attribute definition status updated successfully")
+                .data(data)
+                .build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable String id) {
+        attributeDefinitionService.delete(id);
+        return ApiResponse.<Void>builder()
+                .code(HttpStatus.NO_CONTENT.value())
+                .message("Attribute definition deleted successfully")
+                .build();
+    }
+
+
 
 
 }
