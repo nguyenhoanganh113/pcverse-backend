@@ -16,7 +16,6 @@ import java.util.List;
                 )
         }
 )
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -26,7 +25,6 @@ public class AttributeDefinition extends AbstractAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @EqualsAndHashCode.Include
     @Column(length = 36)
     private String id;
 
@@ -55,6 +53,18 @@ public class AttributeDefinition extends AbstractAuditingEntity {
     @Version
     @Column(nullable = false)
     private Long version;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AttributeDefinition other)) return false;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 
     public void addAttributeOption(AttributeOption attributeOption) {
         attributeOptions.add(attributeOption);
