@@ -4,6 +4,7 @@ import com.pcverse.dto.response.ErrorResponse;
 import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -168,6 +169,27 @@ public class GlobalExceptionHandler {
                 "Invalid value '" + value + "' for field '" + field
                         + "'. Expected type: " + expectedType
         );
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(
+            OptimisticLockingFailureException exception,
+            WebRequest request) {
+
+        log.warn(
+                "Optimistic locking conflict: {}",
+                exception.getMessage()
+        );
+
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.OPTIMISTIC_LOCKING_CONFLICT,
+                request,
+                null
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.OPTIMISTIC_LOCKING_CONFLICT.getHttpStatus())
+                .body(response);
     }
 
     private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {
