@@ -18,7 +18,7 @@ public interface AttributeDefinitionService {
 
     AttributeDefinitionResponse update(String id, UpdateAttributeDefinitionRequest request);
 
-    void delete(String id);
+    void delete(String id, Long version);
 
     AttributeDefinitionResponse updateStatus(
             String id,

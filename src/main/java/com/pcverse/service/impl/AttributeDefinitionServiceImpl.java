@@ -25,6 +25,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 @AllArgsConstructor
 @Slf4j
@@ -117,6 +119,8 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
         }
 
         AttributeDefinition attributeDefinition = findAttributeDefinition(id);
+        validateVersion(attributeDefinition, request.getVersion());
+
         if (request.isNamePresent()) {
             attributeDefinition.setName(request.getName());
         }
@@ -128,9 +132,10 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
 
     @Override
     @Transactional
-    public void delete(String id) {
+    public void delete(String id, Long version) {
 
         AttributeDefinition attributeDefinition = findAttributeDefinition(id);
+        validateVersion(attributeDefinition, version);
 
         // Kiểm tra xem AttributeDefinition có đang được sử dụng trong CategoryAttribute hay không ?
         boolean assignedToCategory = categoryAttributeRepository.existsByAttributeDefinition_Id(id);
@@ -177,6 +182,8 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
         AttributeDefinition attributeDefinition =
                 findAttributeDefinition(id);
 
+        validateVersion(attributeDefinition, request.version());
+
         boolean requestedStatus = request.active();
 
         if (attributeDefinition.isActive() == requestedStatus) {
@@ -206,6 +213,20 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
         try {
             attributeDefinitionRepository.flush();
         } catch (OptimisticLockingFailureException exception) {
+            throw new AppException(
+                    ErrorCode.ATTRIBUTE_DEFINITION_CONCURRENT_MODIFICATION
+            );
+        }
+    }
+
+    private void validateVersion(
+            AttributeDefinition attributeDefinition,
+            Long requestedVersion
+    ) {
+        if (!Objects.equals(
+                attributeDefinition.getVersion(),
+                requestedVersion
+        )) {
             throw new AppException(
                     ErrorCode.ATTRIBUTE_DEFINITION_CONCURRENT_MODIFICATION
             );

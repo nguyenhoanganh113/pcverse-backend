@@ -2,6 +2,7 @@ package com.pcverse.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -17,10 +18,18 @@ public class UpdateAttributeDefinitionRequest {
         @JsonIgnore
         private boolean namePresent;
 
+        @NotNull(message = "Version must not be null")
+        private Long version;
+
         @JsonSetter("name")
         public void setName(String name) {
                 this.namePresent = true;
                 this.name = stripToNull(name);
+        }
+
+        @JsonSetter("version")
+        public void setVersion(Long version) {
+                this.version = version;
         }
 
         @JsonIgnore

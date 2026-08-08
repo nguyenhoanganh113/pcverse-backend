@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/admin/attributes")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_MANAGE')")
 public class AdminAttributeDefinitionController {
 
     private final AttributeDefinitionService attributeDefinitionService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_MANAGE')")
     public ApiResponse<AttributeDefinitionResponse> create(@Valid @RequestBody CreateAttributeDefinitionRequest request) {
         var data = attributeDefinitionService.create(request);
         return ApiResponse.<AttributeDefinitionResponse>builder()
@@ -74,7 +74,7 @@ public class AdminAttributeDefinitionController {
     @PatchMapping("/{id}/status")
     public ApiResponse<AttributeDefinitionResponse> updateStatus(
             @PathVariable String id,
-            @RequestParam UpdateAttributeDefinitionStatusRequest request
+            @Valid @RequestBody UpdateAttributeDefinitionStatusRequest request
     ) {
         var data = attributeDefinitionService.updateStatus(id, request);
         return ApiResponse.<AttributeDefinitionResponse>builder()
@@ -85,10 +85,13 @@ public class AdminAttributeDefinitionController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable String id) {
-        attributeDefinitionService.delete(id);
+    public ApiResponse<Void> delete(
+            @PathVariable String id,
+            @RequestParam Long version
+    ) {
+        attributeDefinitionService.delete(id, version);
         return ApiResponse.<Void>builder()
-                .code(HttpStatus.NO_CONTENT.value())
+                .code(HttpStatus.OK.value())
                 .message("Attribute definition deleted successfully")
                 .build();
     }

@@ -46,7 +46,7 @@ public class AttributeDefinition extends AbstractAuditingEntity {
     @OneToMany(mappedBy = "attributeDefinition", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
     private List<AttributeOption> attributeOptions = new ArrayList<>();
 
-    @OneToMany(mappedBy = "attributeDefinition")
+    @OneToMany(mappedBy = "attributeDefinition", fetch = FetchType.LAZY)
     @Builder.Default
     private List<CategoryAttribute> categoryAttributes = new ArrayList<>();
 

@@ -36,7 +36,7 @@ public class EnumPatternValidator implements ConstraintValidator<EnumPattern, Ch
             return true;
         }
 
-        String rawValue = value.toString().trim();
+        String rawValue = value.toString().strip();
 
         if (rawValue.isBlank()) {
             return true;
