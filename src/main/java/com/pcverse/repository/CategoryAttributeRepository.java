@@ -15,6 +15,8 @@ public interface CategoryAttributeRepository extends JpaRepository<CategoryAttri
 
     boolean existsByAttributeDefinition_Id(String attributeId);
 
+    boolean existsByCategory_Id(String categoryId);
+
     @EntityGraph(
             attributePaths = {
                     "category",

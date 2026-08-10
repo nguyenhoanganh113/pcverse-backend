@@ -27,9 +27,11 @@ public class Role extends AbstractAuditingEntity {
     private String description;
 
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<UserHasRole> userHasRoles = new HashSet<>();
 
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<RoleHasPermission> rolePermissions = new HashSet<>();
 
 }

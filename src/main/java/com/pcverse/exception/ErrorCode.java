@@ -46,6 +46,10 @@ public enum ErrorCode {
     CATEGORY_NAME_INVALID(400, "Category name must produce a non-empty slug", HttpStatus.BAD_REQUEST),
     CATEGORY_NOT_FOUND(404, "Category not found", HttpStatus.NOT_FOUND),
     CATEGORY_INACTIVE(400, "Category is inactive", HttpStatus.BAD_REQUEST),
+    CATEGORY_VERSION_REQUIRED(400, "Category version must not be null", HttpStatus.BAD_REQUEST),
+    CATEGORY_IN_USE(409, "Category is in use", HttpStatus.CONFLICT),
+    CATEGORY_HAS_ACTIVE_PRODUCTS(409, "Category has active products", HttpStatus.CONFLICT),
+    CATEGORY_DATA_INTEGRITY_VIOLATION(409, "Category data conflicts with existing data", HttpStatus.CONFLICT),
     INVALID_CATEGORY_DATA_TYPE(400, "Invalid category data type", HttpStatus.BAD_REQUEST),
     CATEGORY_SEARCH_FIELD_REQUIRED(400, "Category search field is required", HttpStatus.BAD_REQUEST),
     CATEGORY_SEARCH_VALUE_REQUIRED(400, "Category search value is required", HttpStatus.BAD_REQUEST),
@@ -57,7 +61,14 @@ public enum ErrorCode {
     PRODUCT_PRICE_RANGE_REQUIRED(400, "Product price range is required", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_INVALID(400, "Product price is invalid", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_RANGE_INVALID(400, "Product price range is invalid", HttpStatus.BAD_REQUEST),
-    PRODUCT_CONCURRENT_MODIFICATION(400, "Product was modified by another request. Please retry", HttpStatus.CONFLICT),
+    PRODUCT_CONCURRENT_MODIFICATION(409, "Product was modified by another request. Please retry", HttpStatus.CONFLICT),
+    PRODUCT_VERSION_REQUIRED(400, "Product version must not be null", HttpStatus.BAD_REQUEST),
+    PRODUCT_SKU_ALREADY_EXISTS(409, "Product SKU already exists", HttpStatus.CONFLICT),
+    PRODUCT_SLUG_ALREADY_EXISTS(409, "Product slug already exists", HttpStatus.CONFLICT),
+    PRODUCT_NAME_INVALID(400, "Product name must produce a non-empty slug", HttpStatus.BAD_REQUEST),
+    PRODUCT_IMAGE_REQUIRED(409, "At least one image is required to activate product", HttpStatus.CONFLICT),
+    PRODUCT_REQUIRED_ATTRIBUTES_MISSING(409, "Required product attributes are missing", HttpStatus.CONFLICT),
+    PRODUCT_CATEGORY_CHANGE_NOT_ALLOWED(409, "Cannot change category while product has attribute values", HttpStatus.CONFLICT),
     BRAND_NOT_FOUND(404, "Brand not found", HttpStatus.NOT_FOUND),
     PRODUCT_DATA_INTEGRITY_VIOLATION(409, "Product data conflicts with existing data", HttpStatus.CONFLICT),
     BRAND_NAME_REQUIRED(400, "Brand name is required", HttpStatus.BAD_REQUEST),
@@ -77,7 +88,11 @@ public enum ErrorCode {
     CATEGORY_ATTRIBUTE_ALREADY_EXISTS(409, "Category attribute already exists", HttpStatus.CONFLICT),
     ATTRIBUTE_OPTION_NOT_FOUND(404, "Attribute option not found", HttpStatus.NOT_FOUND),
     ATTRIBUTE_OPTION_IN_USE(409, "Attribute option in use", HttpStatus.CONFLICT),
-    ATTRIBUTE_OPTION_CONCURRENT_UPDATE(409, "Attribute option was modified by another request. Please retry", HttpStatus.CONFLICT),;
+    ATTRIBUTE_OPTION_CONCURRENT_UPDATE(409, "Attribute option was modified by another request. Please retry", HttpStatus.CONFLICT),
+    CATEGORY_ATTRIBUTE_NOT_FOUND(404, "Category attribute not found", HttpStatus.NOT_FOUND),
+    CATEGORY_ATTRIBUTE_IN_USE(409, "Category attribute in use", HttpStatus.CONFLICT),
+    CATEGORY_ATTRIBUTE_CONCURRENT_UPDATE(409, "Category attribute was modified by another request. Please retry", HttpStatus.CONFLICT),
+    CATEGORY_ATTRIBUTE_VERSION_REQUIRED(400, "Version must not be null", HttpStatus.BAD_REQUEST),;
 
     private final int code;
     private final String message;

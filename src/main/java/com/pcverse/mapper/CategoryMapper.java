@@ -1,13 +1,17 @@
 package com.pcverse.mapper;
 
-import com.pcverse.dto.response.CategoryDetailResponse;
+import com.pcverse.dto.response.CategoryResponse;
 import com.pcverse.entity.Category;
 import org.mapstruct.Mapper;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+@Mapper(
+        componentModel = "spring",
+        unmappedTargetPolicy = ReportingPolicy.ERROR
+)
 public interface CategoryMapper {
 
-    CategoryDetailResponse toCategoryDetailResponse(Category category);
-
+    @Mapping(target = "updatedAt", source = "lastModifiedAt")
+    CategoryResponse toResponse(Category category);
 }

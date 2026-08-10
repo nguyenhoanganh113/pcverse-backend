@@ -12,6 +12,9 @@ public record CreateCategoryResponse(
         String name,
         String slug,
         String description,
+        String imageUrl,
+        Integer displayOrder,
+        Boolean active,
         Instant createdAt
 ) {
 }

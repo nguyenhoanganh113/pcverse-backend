@@ -28,7 +28,7 @@ import com.pcverse.service.KeycloakEmailService;
 import com.pcverse.service.RedisTokenService;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
-import com.pcverse.specification.UserSpecification;
+import com.pcverse.repository.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

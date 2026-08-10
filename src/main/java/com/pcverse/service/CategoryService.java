@@ -3,22 +3,28 @@ package com.pcverse.service;
 import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
+import com.pcverse.dto.request.UpdateCategoryStatusRequest;
+import com.pcverse.dto.response.CategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.UpdateCategoryResponse;
-import com.pcverse.dto.response.CategoryDetailResponse;
-import com.pcverse.dto.response.CreateCategoryResponse;
 import org.springframework.data.domain.Pageable;
 
 public interface CategoryService {
 
-    CreateCategoryResponse createCategory(CreateCategoryRequest request);
+    CategoryResponse create(CreateCategoryRequest request);
 
-    PaginationResponse<CategoryDetailResponse> searchCategories(CategorySearchRequest categorySearchRequest, Pageable pagable);
+    PaginationResponse<CategoryResponse> searchForAdmin(
+            CategorySearchRequest request,
+            Pageable pageable
+    );
 
-    CategoryDetailResponse getCategory(String id);
+    CategoryResponse getById(String id);
 
-    UpdateCategoryResponse updateCategory(String id, UpdateCategoryRequest request);
+    CategoryResponse update(String id, UpdateCategoryRequest request);
 
-    void deleteCategory(String id);
+    CategoryResponse updateStatus(
+            String id,
+            UpdateCategoryStatusRequest request
+    );
 
+    void delete(String id, Long version);
 }

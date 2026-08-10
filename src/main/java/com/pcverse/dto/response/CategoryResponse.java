@@ -5,13 +5,16 @@ import lombok.Builder;
 import java.time.Instant;
 
 @Builder
-public record UpdateCategoryResponse(
+public record CategoryResponse(
         String id,
         String name,
         String slug,
         String description,
         String imageUrl,
-        Integer displayOrder,
+        int displayOrder,
+        boolean active,
+        Long version,
+        Instant createdAt,
         Instant updatedAt
 ) {
 }

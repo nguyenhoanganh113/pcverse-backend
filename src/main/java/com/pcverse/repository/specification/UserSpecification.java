@@ -1,4 +1,4 @@
-package com.pcverse.specification;
+package com.pcverse.repository.specification;
 
 import com.pcverse.entity.User;
 import com.pcverse.enums.Gender;
@@ -13,6 +13,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.Locale;
+
+import static com.pcverse.repository.specification.SpecificationUtils.escapeLikePattern;
 
 @UtilityClass
 public class UserSpecification {
@@ -164,12 +166,5 @@ public class UserSpecification {
 
         String normalizedValue = value.trim().toLowerCase(Locale.ROOT);
         return normalizedValue.isEmpty() ? null : normalizedValue;
-    }
-
-    private static String escapeLikePattern(String value) {
-        return value
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
     }
 }
