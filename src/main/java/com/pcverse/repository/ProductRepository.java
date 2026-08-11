@@ -7,6 +7,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -36,4 +39,16 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
     @Override
     @EntityGraph(attributePaths = {"category", "brand"})
     Page<Product> findAll(Specification<Product> specification, Pageable pageable);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update Product product
+            set product.version = product.version + 1
+            where product.id = :productId
+              and product.version = :expectedVersion
+            """)
+    int incrementVersionIfMatches(
+            @Param("productId") String productId,
+            @Param("expectedVersion") Long expectedVersion
+    );
 }

@@ -2,25 +2,33 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.AdminProductSearchRequest;
 import com.pcverse.dto.request.CreateProductRequest;
+import com.pcverse.dto.request.ProductAttributeValueRequest;
+import com.pcverse.dto.request.UpdateProductAttributesRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.PaginationResponse;
+import com.pcverse.dto.response.ProductAttributesResponse;
 import com.pcverse.dto.response.ProductResponse;
+import com.pcverse.entity.AttributeOption;
 import com.pcverse.entity.Brand;
 import com.pcverse.entity.Category;
 import com.pcverse.entity.CategoryAttribute;
 import com.pcverse.entity.Product;
+import com.pcverse.entity.ProductAttributeValue;
 import com.pcverse.entity.ProductImage;
 import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.ProductMapper;
+import com.pcverse.mapper.ProductAttributeValueMapper;
+import com.pcverse.repository.AttributeOptionRepository;
 import com.pcverse.repository.BrandRepository;
 import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductRepository;
 import com.pcverse.repository.specification.ProductSpecification;
 import com.pcverse.service.ProductService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,8 +41,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -47,7 +59,10 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final CategoryAttributeRepository categoryAttributeRepository;
+    private final AttributeOptionRepository attributeOptionRepository;
     private final ProductMapper productMapper;
+    private final ProductAttributeValueMapper productAttributeValueMapper;
+    private final EntityManager entityManager;
 
     @Override
     @Transactional
@@ -180,6 +195,44 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    public ProductAttributesResponse updateAttributes(
+            String id,
+            UpdateProductAttributesRequest request
+    ) {
+        Product product = findProduct(id);
+        validateVersion(product, request.version());
+
+        List<CategoryAttribute> categoryAttributes = categoryAttributeRepository
+                .findAllByCategory_IdOrderByDisplayOrderAsc(product.getCategory().getId());
+
+        Map<String, CategoryAttribute> categoryAttributeByDefinitionId =
+                categoryAttributes.stream()
+                        .collect(Collectors.toMap(
+                                categoryAttribute -> categoryAttribute
+                                        .getAttributeDefinition()
+                                        .getId(),
+                                categoryAttribute -> categoryAttribute
+                        ));
+
+        Map<String, AttributeOption> requestedOptionByDefinitionId =
+                validateAndResolveAttributeOptions(
+                        request.attributeValues(),
+                        categoryAttributes,
+                        categoryAttributeByDefinitionId
+                );
+
+        replaceAttributeValues(
+                product,
+                requestedOptionByDefinitionId,
+                categoryAttributeByDefinitionId
+        );
+
+        flushAttributeUpdate(product, request.version());
+        return toAttributesResponse(product, categoryAttributes);
+    }
+
+    @Override
+    @Transactional
     public void delete(String id, Long version) {
         if (version == null) {
             throw new AppException(ErrorCode.PRODUCT_VERSION_REQUIRED);
@@ -211,6 +264,171 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setCategory(findActiveCategory(requestedCategoryId));
+    }
+
+    private Map<String, AttributeOption> validateAndResolveAttributeOptions(
+            List<ProductAttributeValueRequest> requestedValues,
+            List<CategoryAttribute> categoryAttributes,
+            Map<String, CategoryAttribute> categoryAttributeByDefinitionId
+    ) {
+        Map<String, AttributeOption> requestedOptionByDefinitionId = new LinkedHashMap<>();
+
+        Set<String> requestedDefinitionIds = new HashSet<>();
+
+        for (ProductAttributeValueRequest requestedValue : requestedValues) {
+            String definitionId = requestedValue.attributeDefinitionId();
+
+            // Kiểm tra không cho phép gửi trùng AttributeDefinition trong cùng một request
+            if (!requestedDefinitionIds.add(definitionId)) {
+                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
+            }
+
+            // Lấy cấu hình thuộc tính của Category theo AttributeDefinition mà request gửi lên
+            CategoryAttribute categoryAttribute =
+                    categoryAttributeByDefinitionId.get(definitionId);
+            if (categoryAttribute == null) {
+                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_NOT_ALLOWED);
+            }
+            if (!categoryAttribute.getAttributeDefinition().isActive()) {
+                throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
+            }
+
+            AttributeOption attributeOption = attributeOptionRepository
+                    .findByIdAndAttributeDefinitionId(
+                            requestedValue.attributeOptionId(),
+                            definitionId
+                    )
+                    .orElseThrow(() ->
+                            new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND)
+                    );
+            if (!attributeOption.isActive()) {
+                throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
+            }
+
+            requestedOptionByDefinitionId.put(definitionId, attributeOption);
+        }
+
+        boolean missingRequiredAttribute = categoryAttributes.stream()
+                .filter(CategoryAttribute::isRequired)
+                .map(categoryAttribute -> categoryAttribute
+                        .getAttributeDefinition()
+                        .getId())
+                .anyMatch(requiredDefinitionId ->
+                        !requestedDefinitionIds.contains(requiredDefinitionId)
+                );
+        if (missingRequiredAttribute) {
+            throw new AppException(
+                    ErrorCode.PRODUCT_REQUIRED_ATTRIBUTES_MISSING
+            );
+        }
+
+        return requestedOptionByDefinitionId;
+    }
+
+    private void replaceAttributeValues(
+            Product product,
+            Map<String, AttributeOption> requestedOptionByDefinitionId,
+            Map<String, CategoryAttribute> categoryAttributeByDefinitionId
+    ) {
+
+        // Map với key là AttributeDefinitionId và value là ProductAttributeValue
+        Map<String, ProductAttributeValue> existingValueByDefinitionId =
+                product.getAttributeValues().stream()
+                        .collect(Collectors.toMap(
+                                value -> value.getAttributeDefinition().getId(),
+                                value -> value
+                        ));
+
+        for (ProductAttributeValue existingValue
+                : new ArrayList<>(product.getAttributeValues())) {
+            String definitionId = existingValue
+                    .getAttributeDefinition()
+                    .getId();
+
+            // PUT thay thế toàn bộ danh sách: xóa thuộc tính hiện có nếu request không gửi lại
+            if (!requestedOptionByDefinitionId.containsKey(definitionId)) {
+                product.removeAttributeValue(existingValue);
+            }
+        }
+
+        requestedOptionByDefinitionId.forEach((definitionId, option) -> {
+            ProductAttributeValue existingValue =
+                    existingValueByDefinitionId.get(definitionId);
+
+            // ProductAttributeValue đã tồn tại: cập nhật option được chọn
+            if (existingValue != null) {
+                existingValue.setAttributeOption(option);
+                return;
+            }
+
+            // Product chưa có ProductAttributeValue này: tạo ProductAttributeValue mới
+            ProductAttributeValue newValue = ProductAttributeValue.builder()
+                    .attributeDefinition(
+                            categoryAttributeByDefinitionId
+                                    .get(definitionId)
+                                    .getAttributeDefinition()
+                    )
+                    .attributeOption(option)
+                    .build();
+
+            // Đồng bộ 2 chiều bằng method addAttributeValue để thêm ProductAttributeValue xuất hiện trong rq dto
+            product.addAttributeValue(newValue);
+        });
+    }
+
+    private void flushAttributeUpdate(Product product, Long expectedVersion) {
+        try {
+            productRepository.flush();
+
+            int updatedRows = productRepository.incrementVersionIfMatches(
+                    product.getId(),
+                    expectedVersion
+            );
+            if (updatedRows == 0) {
+                throw new AppException(
+                        ErrorCode.PRODUCT_CONCURRENT_MODIFICATION
+                );
+            }
+
+            entityManager.refresh(product);
+        } catch (OptimisticLockingFailureException exception) {
+            throw new AppException(ErrorCode.PRODUCT_CONCURRENT_MODIFICATION);
+        } catch (DataIntegrityViolationException exception) {
+            if (hasConstraint(exception, "uk_product_attribute")) {
+                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
+            }
+            throw new AppException(ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION);
+        }
+    }
+
+    private ProductAttributesResponse toAttributesResponse(
+            Product product,
+            List<CategoryAttribute> categoryAttributes
+    ) {
+        Map<String, ProductAttributeValue> valueByDefinitionId = new HashMap<>();
+        product.getAttributeValues().forEach(value ->
+                valueByDefinitionId.put(
+                        value.getAttributeDefinition().getId(),
+                        value
+                )
+        );
+
+        return ProductAttributesResponse.builder()
+                .version(product.getVersion())
+                .attributeValues(
+                        categoryAttributes.stream()
+                                .map(categoryAttribute ->
+                                        valueByDefinitionId.get(
+                                                categoryAttribute
+                                                        .getAttributeDefinition()
+                                                        .getId()
+                                        )
+                                )
+                                .filter(Objects::nonNull)
+                                .map(productAttributeValueMapper::toResponse)
+                                .toList()
+                )
+                .build();
     }
 
     private void updateBrand(Product product, String requestedBrandId) {

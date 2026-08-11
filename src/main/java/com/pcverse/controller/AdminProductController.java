@@ -3,10 +3,12 @@ package com.pcverse.controller;
 import com.pcverse.dto.request.AdminProductSearchRequest;
 import com.pcverse.dto.request.CreateProductRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
+import com.pcverse.dto.request.UpdateProductAttributesRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.ProductResponse;
+import com.pcverse.dto.response.ProductAttributesResponse;
 import com.pcverse.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 @RequestMapping("/api/v1/admin/products")
@@ -98,6 +101,19 @@ public class AdminProductController {
                 .code(HttpStatus.OK.value())
                 .message("Product status updated successfully")
                 .data(productService.updateStatus(productId, request))
+                .build();
+    }
+
+    @PutMapping("/{productId}/attributes")
+    @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
+    public ApiResponse<ProductAttributesResponse> updateAttributes(
+            @PathVariable String productId,
+            @Valid @RequestBody UpdateProductAttributesRequest request
+    ) {
+        return ApiResponse.<ProductAttributesResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Product attributes updated successfully")
+                .data(productService.updateAttributes(productId, request))
                 .build();
     }
 
