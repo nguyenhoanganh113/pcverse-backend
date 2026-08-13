@@ -39,7 +39,7 @@ public record CreateProductRequest(
         Boolean allowBackorder,
 
         @Valid
-        List<ProductImage> images
+        List<@NotNull(message = "Product image must not be null") @Valid ProductImage> images
 
 ) {
     public CreateProductRequest {
@@ -47,10 +47,14 @@ public record CreateProductRequest(
         brandId = strip(brandId);
         sku = strip(sku);
         name = strip(name);
-        description = description == null ? null : description.strip();
+        description = stripToNull(description);
     }
 
     private static String strip(String value) {
         return value == null ? null : value.strip();
+    }
+
+    private static String stripToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 }

@@ -2,10 +2,15 @@ package com.pcverse.dto.request;
 
 import com.pcverse.enums.ProductStatus;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 public record AdminProductSearchRequest(
+        @Size(
+                max = 255,
+                message = "Keyword must not exceed 255 characters"
+        )
         String keyword,
 
         String categoryId,

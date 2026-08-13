@@ -7,10 +7,11 @@ import com.pcverse.dto.request.UpdateProductAttributesRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.ProductResponse;
+import com.pcverse.dto.response.AdminProductResponse;
 import com.pcverse.dto.response.ProductAttributesResponse;
 import com.pcverse.service.ProductService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -41,8 +42,8 @@ public class AdminProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_CREATE')")
-    public ApiResponse<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
-        return ApiResponse.<ProductResponse>builder()
+    public ApiResponse<AdminProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
+        return ApiResponse.<AdminProductResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Product created successfully")
                 .data(productService.create(request))
@@ -51,8 +52,8 @@ public class AdminProductController {
 
     @GetMapping("/{productId}")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
-    public ApiResponse<ProductResponse> getById(@PathVariable String productId) {
-        return ApiResponse.<ProductResponse>builder()
+    public ApiResponse<AdminProductResponse> getById(@PathVariable String productId) {
+        return ApiResponse.<AdminProductResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Product retrieved successfully")
                 .data(productService.getById(productId))
@@ -61,7 +62,7 @@ public class AdminProductController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
-    public ApiResponse<PaginationResponse<ProductResponse>> search(
+    public ApiResponse<PaginationResponse<AdminProductResponse>> search(
             @Valid @ModelAttribute AdminProductSearchRequest request,
             @PageableDefault(
                     size = 20,
@@ -71,7 +72,7 @@ public class AdminProductController {
             Pageable pageable
     ) {
         return ApiResponse
-                .<PaginationResponse<ProductResponse>>builder()
+                .<PaginationResponse<AdminProductResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Products retrieved successfully")
                 .data(productService.searchForAdmin(request, pageable))
@@ -80,11 +81,11 @@ public class AdminProductController {
 
     @PatchMapping("/{productId}")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
-    public ApiResponse<ProductResponse> update(
+    public ApiResponse<AdminProductResponse> update(
             @PathVariable String productId,
             @Valid @RequestBody UpdateProductRequest request
     ) {
-        return ApiResponse.<ProductResponse>builder()
+        return ApiResponse.<AdminProductResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Product updated successfully")
                 .data(productService.update(productId, request))
@@ -93,11 +94,11 @@ public class AdminProductController {
 
     @PatchMapping("/{productId}/status")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
-    public ApiResponse<ProductResponse> updateStatus(
+    public ApiResponse<AdminProductResponse> updateStatus(
             @PathVariable String productId,
             @Valid @RequestBody UpdateProductStatusRequest request
     ) {
-        return ApiResponse.<ProductResponse>builder()
+        return ApiResponse.<AdminProductResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Product status updated successfully")
                 .data(productService.updateStatus(productId, request))
@@ -121,7 +122,11 @@ public class AdminProductController {
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_DELETE')")
     public ApiResponse<Void> delete(
             @PathVariable String productId,
-            @RequestParam(required = false) Long version
+            @RequestParam(required = false)
+            @PositiveOrZero(
+                    message = "Version must be greater than or equal to 0"
+            )
+            Long version
     ) {
         productService.delete(productId, version);
 

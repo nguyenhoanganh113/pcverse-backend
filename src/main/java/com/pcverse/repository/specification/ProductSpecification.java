@@ -25,8 +25,8 @@ public class ProductSpecification {
             String pattern = "%" + escapeLikePattern(normalizedKeyword) + "%";
 
             return (root, query, criteriaBuilder) -> criteriaBuilder.or(
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("sku")), pattern)
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern, '\\'),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("sku")), pattern, '\\')
             );
         }
     }

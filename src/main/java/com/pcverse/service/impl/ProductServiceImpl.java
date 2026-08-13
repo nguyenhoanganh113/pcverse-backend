@@ -8,7 +8,7 @@ import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.ProductAttributesResponse;
-import com.pcverse.dto.response.ProductResponse;
+import com.pcverse.dto.response.AdminProductResponse;
 import com.pcverse.entity.AttributeOption;
 import com.pcverse.entity.Brand;
 import com.pcverse.entity.Category;
@@ -28,6 +28,8 @@ import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductRepository;
 import com.pcverse.repository.specification.ProductSpecification;
 import com.pcverse.service.ProductService;
+import com.pcverse.utils.ConstraintUtils;
+import com.pcverse.utils.SlugUtils;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
@@ -66,32 +68,29 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse create(CreateProductRequest request) {
+    public AdminProductResponse create(CreateProductRequest request) {
+
         Category category = findActiveCategory(request.categoryId());
+
         Brand brand = findActiveBrand(request.brandId());
+
         String sku = normalizeSku(request.sku());
-        String slug = generateRequiredSlug(request.name());
+
+        String slug = SlugUtils.generateSlug(request.name());
+
+        if (slug.isBlank()) {
+            throw new AppException(ErrorCode.PRODUCT_NAME_INVALID);
+        }
 
         validateSkuAvailable(sku, null);
         validateSlugAvailable(slug, null);
 
-        Product product = Product.builder()
-                .name(request.name())
-                .slug(slug)
-                .sku(sku)
-                .description(request.description())
-                .price(request.price())
-                .stockQuantity(
-                        request.stockQuantity() == null
-                                ? 0
-                                : request.stockQuantity()
-                )
-                .allowBackorder(Boolean.TRUE.equals(request.allowBackorder()))
-                .images(copyImages(request.images()))
-                .category(category)
-                .brand(brand)
-                .productStatus(ProductStatus.INACTIVE)
-                .build();
+        Product product = productMapper.toEntity(request);
+        product.setSlug(slug);
+        product.setSku(sku);
+        product.setCategory(category);
+        product.setBrand(brand);
+        product.setProductStatus(ProductStatus.INACTIVE);
 
         flushCreate(product);
         return productMapper.toResponse(product);
@@ -99,7 +98,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<ProductResponse> searchForAdmin(
+    public PaginationResponse<AdminProductResponse> searchForAdmin(
             AdminProductSearchRequest request,
             Pageable pageable
     ) {
@@ -114,11 +113,11 @@ public class ProductServiceImpl implements ProductService {
                 ProductSpecification.hasBrand(request.brandId())
         );
 
-        Page<ProductResponse> page = productRepository
+        Page<AdminProductResponse> page = productRepository
                 .findAll(specification, pageable)
                 .map(productMapper::toResponse);
 
-        return PaginationResponse.<ProductResponse>builder()
+        return PaginationResponse.<AdminProductResponse>builder()
                 .currentPage(page.getNumber())
                 .size(page.getSize())
                 .totalPages(page.getTotalPages())
@@ -129,13 +128,13 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public ProductResponse getById(String id) {
+    public AdminProductResponse getById(String id) {
         return productMapper.toResponse(findProduct(id));
     }
 
     @Override
     @Transactional
-    public ProductResponse update(
+    public AdminProductResponse update(
             String id,
             UpdateProductRequest request
     ) {
@@ -151,20 +150,14 @@ public class ProductServiceImpl implements ProductService {
         updateSku(product, request.sku());
         updateNameAndSlug(product, request.name());
 
-        if (request.description() != null) {
-            product.setDescription(request.description());
-        }
-        if (request.price() != null) {
-            product.setPrice(request.price());
-        }
-        if (request.stockQuantity() != null) {
-            product.setStockQuantity(request.stockQuantity());
-        }
-        if (request.allowBackorder() != null) {
-            product.setAllowBackorder(request.allowBackorder());
-        }
+        productMapper.partialUpdate(request, product);
+
         if (request.images() != null) {
-            product.setImages(copyImages(request.images()));
+            product.setImages(new ArrayList<>(request.images()));
+        }
+
+        if (product.getProductStatus() == ProductStatus.ACTIVE) {
+            validateCanActivate(product);
         }
 
         flushUpdate();
@@ -173,7 +166,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse updateStatus(
+    public AdminProductResponse updateStatus(
             String id,
             UpdateProductStatusRequest request
     ) {
@@ -240,6 +233,10 @@ public class ProductServiceImpl implements ProductService {
 
         Product product = findProduct(id);
         validateVersion(product, version);
+
+        if (product.getProductStatus() == ProductStatus.ACTIVE) {
+            throw new AppException(ErrorCode.PRODUCT_ACTIVE_CANNOT_DELETE);
+        }
 
         try {
             productRepository.delete(product);
@@ -394,7 +391,7 @@ public class ProductServiceImpl implements ProductService {
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(ErrorCode.PRODUCT_CONCURRENT_MODIFICATION);
         } catch (DataIntegrityViolationException exception) {
-            if (hasConstraint(exception, "uk_product_attribute")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_product_attribute")) {
                 throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
             }
             throw new AppException(ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION);
@@ -459,13 +456,26 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        String slug = generateRequiredSlug(requestedName);
+        String slug = SlugUtils.generateSlug(requestedName);
+
+        if (slug.isBlank()) {
+            throw new AppException(ErrorCode.PRODUCT_NAME_INVALID);
+        }
+
         validateSlugAvailable(slug, product.getId());
         product.setName(requestedName);
         product.setSlug(slug);
     }
 
     private void validateCanActivate(Product product) {
+        if (!product.getCategory().isActive()) {
+            throw new AppException(ErrorCode.CATEGORY_INACTIVE);
+        }
+
+        if (!product.getBrand().isActive()) {
+            throw new AppException(ErrorCode.BRAND_INACTIVE);
+        }
+
         if (product.getImages().isEmpty()) {
             throw new AppException(ErrorCode.PRODUCT_IMAGE_REQUIRED);
         }
@@ -569,37 +579,14 @@ public class ProductServiceImpl implements ProductService {
         return sku.strip().toUpperCase(Locale.ROOT);
     }
 
-    private String generateRequiredSlug(String name) {
-        String slug = Normalizer.normalize(
-                        name.strip().toLowerCase(Locale.ROOT),
-                        Normalizer.Form.NFD
-                )
-                .replace("đ", "d")
-                .replaceAll("\\p{M}+", "")
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("^-+|-+$", "");
-
-        if (slug.isBlank()) {
-            throw new AppException(ErrorCode.PRODUCT_NAME_INVALID);
-        }
-
-        return slug;
-    }
-
-    private List<ProductImage> copyImages(List<ProductImage> images) {
-        return images == null
-                ? new ArrayList<>()
-                : new ArrayList<>(images);
-    }
-
     private void flushCreate(Product product) {
         try {
             productRepository.saveAndFlush(product);
         } catch (DataIntegrityViolationException exception) {
-            if (hasConstraint(exception, "uk_products_sku")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_sku")) {
                 throw new AppException(ErrorCode.PRODUCT_SKU_ALREADY_EXISTS);
             }
-            if (hasConstraint(exception, "uk_products_slug")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_slug")) {
                 throw new AppException(ErrorCode.PRODUCT_SLUG_ALREADY_EXISTS);
             }
             throw new AppException(ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION);
@@ -612,27 +599,14 @@ public class ProductServiceImpl implements ProductService {
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(ErrorCode.PRODUCT_CONCURRENT_MODIFICATION);
         } catch (DataIntegrityViolationException exception) {
-            if (hasConstraint(exception, "uk_products_sku")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_sku")) {
                 throw new AppException(ErrorCode.PRODUCT_SKU_ALREADY_EXISTS);
             }
-            if (hasConstraint(exception, "uk_products_slug")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_slug")) {
                 throw new AppException(ErrorCode.PRODUCT_SLUG_ALREADY_EXISTS);
             }
             throw new AppException(ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION);
         }
     }
 
-    private boolean hasConstraint(Throwable exception, String constraintName) {
-        Throwable cause = exception;
-        while (cause != null) {
-            if (cause instanceof ConstraintViolationException violation
-                    && constraintName.equalsIgnoreCase(
-                    violation.getConstraintName()
-            )) {
-                return true;
-            }
-            cause = cause.getCause();
-        }
-        return false;
-    }
 }

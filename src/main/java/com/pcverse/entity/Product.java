@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Check;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
@@ -111,6 +112,7 @@ public class Product extends AbstractAuditingEntity {
     private ProductStatus productStatus = ProductStatus.INACTIVE;
 
     @Builder.Default
+    @OptimisticLock(excluded = true)
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductAttributeValue> attributeValues = new ArrayList<>();
 
@@ -121,6 +123,11 @@ public class Product extends AbstractAuditingEntity {
     @Transient
     public boolean isInStock() {
         return stockQuantity > 0;
+    }
+
+    @Transient
+    public boolean isAvailableForOrder() {
+        return stockQuantity > 0 || allowBackorder;
     }
 
     public void addAttributeValue(ProductAttributeValue attributeValue) {

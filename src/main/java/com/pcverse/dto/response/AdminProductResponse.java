@@ -1,6 +1,5 @@
 package com.pcverse.dto.response;
 
-import com.pcverse.entity.ProductImage;
 import com.pcverse.enums.ProductStatus;
 import lombok.Builder;
 
@@ -9,7 +8,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Builder
-public record ProductResponse(
+public record AdminProductResponse(
         String id,
         String name,
         String slug,
@@ -19,7 +18,7 @@ public record ProductResponse(
         int stockQuantity,
         boolean allowBackorder,
         boolean inStock,
-        List<ProductImage> images,
+        List<ProductImageResponse> images,
         String categoryId,
         String categoryName,
         String brandId,

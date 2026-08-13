@@ -38,7 +38,8 @@ public record UpdateProductRequest(
         Boolean allowBackorder,
 
         @Valid
-        List<ProductImage> images,
+        List<@NotNull(message = "Product image must not be null")
+                @Valid ProductImage> images,
 
         @NotNull(message = "Version must not be null")
         @PositiveOrZero(message = "Version must be greater than or equal to 0")

@@ -18,8 +18,7 @@ import lombok.*;
         indexes = {
                 @Index(
                         name = "idx_product_attribute_values_attribute_option",
-                        columnList =
-                                "attribute_definition_id, attribute_option_id"
+                        columnList = "attribute_option_id"
                 )
         }
 )

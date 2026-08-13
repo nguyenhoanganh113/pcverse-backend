@@ -7,23 +7,23 @@ import com.pcverse.dto.request.UpdateProductAttributesRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.ProductAttributesResponse;
-import com.pcverse.dto.response.ProductResponse;
+import com.pcverse.dto.response.AdminProductResponse;
 import org.springframework.data.domain.Pageable;
 
 public interface ProductService {
 
-    ProductResponse create(CreateProductRequest request);
+    AdminProductResponse create(CreateProductRequest request);
 
-    PaginationResponse<ProductResponse> searchForAdmin(
+    PaginationResponse<AdminProductResponse> searchForAdmin(
             AdminProductSearchRequest request,
             Pageable pageable
     );
 
-    ProductResponse getById(String id);
+    AdminProductResponse getById(String id);
 
-    ProductResponse update(String id, UpdateProductRequest request);
+    AdminProductResponse update(String id, UpdateProductRequest request);
 
-    ProductResponse updateStatus(String id, UpdateProductStatusRequest request);
+    AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request);
 
     ProductAttributesResponse updateAttributes(
             String id,
