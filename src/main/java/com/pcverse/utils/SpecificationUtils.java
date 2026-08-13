@@ -1,4 +1,4 @@
-package com.pcverse.repository.specification;
+package com.pcverse.utils;
 
 import lombok.experimental.UtilityClass;
 

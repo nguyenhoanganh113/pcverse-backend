@@ -33,8 +33,8 @@ import java.util.Objects;
 public class BrandServiceImpl implements BrandService {
 
     private final BrandRepository brandRepository;
-    private final ProductRepository productRepository;
     private final BrandMapper brandMapper;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional

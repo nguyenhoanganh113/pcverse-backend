@@ -14,7 +14,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.Locale;
 
-import static com.pcverse.repository.specification.SpecificationUtils.escapeLikePattern;
+import static com.pcverse.utils.SpecificationUtils.escapeLikePattern;
 
 @UtilityClass
 public class UserSpecification {

@@ -40,7 +40,6 @@ public enum ErrorCode {
     ROLE_NOT_FOUND(404, "Role not found", HttpStatus.NOT_FOUND),
     ADDRESS_NOT_FOUND(404, "Address not found", HttpStatus.NOT_FOUND),
     CATEGORY_ALREADY_EXISTS(409, "Category already exists", HttpStatus.CONFLICT),
-    CATEGORY_DISPLAY_ORDER_INVALID(400, "Category display order must be a non-negative integer", HttpStatus.BAD_REQUEST),
     CATEGORY_CONCURRENT_MODIFICATION(409, "Category was modified by another request. Please retry", HttpStatus.CONFLICT),
     CATEGORY_NAME_REQUIRED(400, "Category name must not be null or blank", HttpStatus.BAD_REQUEST),
     CATEGORY_NAME_INVALID(400, "Category name must produce a non-empty slug", HttpStatus.BAD_REQUEST),

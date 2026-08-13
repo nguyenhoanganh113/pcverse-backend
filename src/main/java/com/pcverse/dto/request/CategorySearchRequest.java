@@ -1,12 +1,18 @@
 package com.pcverse.dto.request;
 
+import jakarta.validation.constraints.Size;
+
 public record CategorySearchRequest(
+        @Size(max = 150)
         String keyword,
         Boolean active
 ) {
     public CategorySearchRequest {
-        keyword = keyword == null || keyword.isBlank()
+        keyword = stripToNull(keyword);
+    }
+    private static String stripToNull(String value) {
+        return value == null || value.isBlank()
                 ? null
-                : keyword.strip();
+                : value.strip();
     }
 }

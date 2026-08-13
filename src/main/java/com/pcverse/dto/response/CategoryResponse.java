@@ -11,7 +11,6 @@ public record CategoryResponse(
         String slug,
         String description,
         String imageUrl,
-        int displayOrder,
         boolean active,
         Long version,
         Instant createdAt,

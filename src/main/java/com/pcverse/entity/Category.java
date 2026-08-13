@@ -48,10 +48,6 @@ public class Category extends AbstractAuditingEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    @Builder.Default
-    @Column(name = "display_order", nullable = false)
-    private int displayOrder = 0;
-
     @OneToMany(mappedBy = "category")
     @Builder.Default
     private List<CategoryAttribute> categoryAttributes = new ArrayList<>();
@@ -66,7 +62,7 @@ public class Category extends AbstractAuditingEntity {
 
     @Column(nullable = false)
     @Builder.Default
-    private boolean active = true;
+    private boolean active = false;
 
     @Override
     public boolean equals(Object object) {

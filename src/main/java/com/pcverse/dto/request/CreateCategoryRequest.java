@@ -1,7 +1,6 @@
 package com.pcverse.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record CreateCategoryRequest(
@@ -12,10 +11,7 @@ public record CreateCategoryRequest(
         String description,
 
         @Size(max = 500, message = "Image URL must not exceed 500 characters")
-        String imageUrl,
-
-        @PositiveOrZero(message = "Display order must be greater than or equal to 0")
-        Integer displayOrder
+        String imageUrl
 ) {
     public CreateCategoryRequest {
         name = strip(name);
