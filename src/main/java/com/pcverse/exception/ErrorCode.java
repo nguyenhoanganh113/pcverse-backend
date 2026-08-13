@@ -73,7 +73,18 @@ public enum ErrorCode {
     PRODUCT_CATEGORY_CHANGE_NOT_ALLOWED(409, "Cannot change category while product has attribute values", HttpStatus.CONFLICT),
     BRAND_NOT_FOUND(404, "Brand not found", HttpStatus.NOT_FOUND),
     PRODUCT_DATA_INTEGRITY_VIOLATION(409, "Product data conflicts with existing data", HttpStatus.CONFLICT),
+    BRAND_NAME_INVALID(400, "Brand name must produce a non-empty slug", HttpStatus.BAD_REQUEST),
     BRAND_NAME_REQUIRED(400, "Brand name is required", HttpStatus.BAD_REQUEST),
+    BRAND_DATA_INTEGRITY_VIOLATION(
+            409,
+            "Brand data conflicts with existing data",
+            HttpStatus.CONFLICT
+    ),
+    BRAND_ALREADY_EXISTS(409, "Brand already exists", HttpStatus.CONFLICT),
+    BRAND_CONCURRENT_MODIFICATION(409, "Brand was modified by another request. Please retry", HttpStatus.CONFLICT),
+    BRAND_HAS_ACTIVE_PRODUCTS(409, "Brand has active products", HttpStatus.CONFLICT),
+    BRAND_VERSION_REQUIRED(400, "Brand version must not be null", HttpStatus.BAD_REQUEST),
+    BRAND_IN_USE(409, "Brand is in use", HttpStatus.CONFLICT),
     PRODUCT_USE_CASE_NOT_FOUND(404, "Product use case not found", HttpStatus.NOT_FOUND),
     CPU_NOT_FOUND(404, "CPU not found", HttpStatus.NOT_FOUND),
     INVALID_ATTRIBUTE_DATA_TYPE(400, "Invalid attribute data type for this operation", HttpStatus.BAD_REQUEST),

@@ -3,7 +3,6 @@ package com.pcverse.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,9 +16,14 @@ import java.util.List;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_brands_slug",
                 columnNames = "slug"
-        )
+        ),
+        indexes = {
+                @Index(
+                        name = "idx_brands_active",
+                        columnList = "active"
+                )
+        }
 )
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -29,7 +33,6 @@ public class Brand extends AbstractAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @EqualsAndHashCode.Include
     @Column(length = 36)
     private String id;
 
@@ -38,9 +41,6 @@ public class Brand extends AbstractAuditingEntity {
 
     @Column(nullable = false, length = 140)
     private String slug;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
 
     @Column(name = "logo_url", length = 2048)
     private String logoUrl;
@@ -52,5 +52,27 @@ public class Brand extends AbstractAuditingEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+
+        if (!(object instanceof Brand other)) {
+            return false;
+        }
+
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 
 }
