@@ -15,7 +15,6 @@ import com.pcverse.entity.Category;
 import com.pcverse.entity.CategoryAttribute;
 import com.pcverse.entity.Product;
 import com.pcverse.entity.ProductAttributeValue;
-import com.pcverse.entity.ProductImage;
 import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
@@ -32,7 +31,6 @@ import com.pcverse.utils.ConstraintUtils;
 import com.pcverse.utils.SlugUtils;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
@@ -41,7 +39,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -188,15 +185,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductAttributesResponse updateAttributes(
-            String id,
-            UpdateProductAttributesRequest request
-    ) {
+    public ProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request) {
         Product product = findProduct(id);
         validateVersion(product, request.version());
 
         List<CategoryAttribute> categoryAttributes = categoryAttributeRepository
-                .findAllByCategory_IdOrderByDisplayOrderAsc(product.getCategory().getId());
+                .findAllByCategory_Id(product.getCategory().getId());
 
         Map<String, CategoryAttribute> categoryAttributeByDefinitionId =
                 categoryAttributes.stream()
@@ -273,6 +267,8 @@ public class ProductServiceImpl implements ProductService {
         Set<String> requestedDefinitionIds = new HashSet<>();
 
         for (ProductAttributeValueRequest requestedValue : requestedValues) {
+
+            // dựa vào request dto lấy ra id của từng AttributeDefinition trong request dto
             String definitionId = requestedValue.attributeDefinitionId();
 
             // Kiểm tra không cho phép gửi trùng AttributeDefinition trong cùng một request
@@ -290,21 +286,20 @@ public class ProductServiceImpl implements ProductService {
                 throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
             }
 
+            // Dựa vào từng AttributeOptionId gửi trong List<ProductAttributeValueRequest> thuộc updateDTO
+            // mà lấy ra AttributeOption
             AttributeOption attributeOption = attributeOptionRepository
-                    .findByIdAndAttributeDefinitionId(
-                            requestedValue.attributeOptionId(),
-                            definitionId
-                    )
-                    .orElseThrow(() ->
-                            new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND)
-                    );
+                    .findByIdAndAttributeDefinitionId(requestedValue.attributeOptionId(), definitionId)
+                    .orElseThrow(() -> new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND));
             if (!attributeOption.isActive()) {
                 throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
             }
 
+            // Đưa AttributeOption vào từng key definitionId chỉ định trong updateDTO
             requestedOptionByDefinitionId.put(definitionId, attributeOption);
         }
 
+        // Duplicate row 498
         boolean missingRequiredAttribute = categoryAttributes.stream()
                 .filter(CategoryAttribute::isRequired)
                 .map(categoryAttribute -> categoryAttribute
@@ -314,9 +309,7 @@ public class ProductServiceImpl implements ProductService {
                         !requestedDefinitionIds.contains(requiredDefinitionId)
                 );
         if (missingRequiredAttribute) {
-            throw new AppException(
-                    ErrorCode.PRODUCT_REQUIRED_ATTRIBUTES_MISSING
-            );
+            throw new AppException(ErrorCode.PRODUCT_REQUIRED_ATTRIBUTES_MISSING);
         }
 
         return requestedOptionByDefinitionId;
@@ -482,7 +475,7 @@ public class ProductServiceImpl implements ProductService {
 
         // Lấy ra các CategoryAttribute required khi mà tạo product
         List<CategoryAttribute> requiredAttributes = categoryAttributeRepository
-                .findAllByCategory_IdOrderByDisplayOrderAsc(
+                .findAllByCategory_Id(
                         product.getCategory().getId()
                 )
                 .stream()
@@ -493,12 +486,10 @@ public class ProductServiceImpl implements ProductService {
         Set<String> valuedDefinitionIds =
                 product.getAttributeValues()
                         .stream()
-                        .filter(value ->
-                                value.getAttributeOption() != null
-                        )
-                        .map(value ->
-                                value.getAttributeDefinition().getId()
-                        )
+                        .filter(value -> value.getAttributeOption() != null)
+                        // Lọc các row trong table ProductAttributeValue đã được gán AttributeOption
+                        .map(value -> value.getAttributeDefinition().getId())
+                        // Lấy AttributeDefinitionId mà đã được gán AttributeOption
                         .collect(Collectors.toSet());
 
         // Kiểm tra sản phẩm có thiếu bất kỳ thuộc tính bắt buộc nào của category không

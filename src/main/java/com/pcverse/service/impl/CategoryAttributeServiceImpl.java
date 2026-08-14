@@ -98,7 +98,7 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
             throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
         }
         return categoryAttributeRepository
-                .findAllByCategory_IdOrderByDisplayOrderAsc(categoryId)
+                .findAllByCategory_Id(categoryId)
                 .stream()
                 .map(categoryAttributeMapper::toResponse)
                 .toList();

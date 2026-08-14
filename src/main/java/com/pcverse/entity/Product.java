@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Check(constraints = "price >= 0 AND stock_quantity >= 0")
 @Table(
         name = "products",
         uniqueConstraints = {

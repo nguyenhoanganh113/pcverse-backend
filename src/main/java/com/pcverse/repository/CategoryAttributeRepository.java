@@ -31,6 +31,6 @@ public interface CategoryAttributeRepository extends JpaRepository<CategoryAttri
                     "attributeDefinition"
             }
     )
-    List<CategoryAttribute> findAllByCategory_IdOrderByDisplayOrderAsc(String categoryId);
+    List<CategoryAttribute> findAllByCategory_Id(String categoryId);
 
 }

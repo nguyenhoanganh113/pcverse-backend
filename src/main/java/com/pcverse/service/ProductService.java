@@ -25,10 +25,7 @@ public interface ProductService {
 
     AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request);
 
-    ProductAttributesResponse updateAttributes(
-            String id,
-            UpdateProductAttributesRequest request
-    );
+    ProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request);
 
     void delete(String id, Long version);
 
