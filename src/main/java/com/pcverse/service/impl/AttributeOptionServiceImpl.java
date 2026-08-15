@@ -200,17 +200,9 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             if (codeExists) {
                 throw new AppException(ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS);
             }
-
-            attributeOption.setCode(request.code());
         }
 
-        if (request.label() != null) {
-            attributeOption.setLabel(request.label());
-        }
-
-        if (request.displayOrder() != null) {
-            attributeOption.setDisplayOrder(request.displayOrder());
-        }
+        attributeOptionMapper.partialUpdate(request, attributeOption);
 
         try {
             attributeOptionRepository.flush();
