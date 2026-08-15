@@ -110,20 +110,10 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
             );
         }
 
-        // Nếu trường name được gửi trong request nhưng giá trị của nó là null, thì ném ra exception
-        if (request.isNamePresent()
-                && request.getName() == null) {
-            throw new AppException(
-                    ErrorCode.ATTRIBUTE_DEFINITION_NAME_REQUIRED
-            );
-        }
-
         AttributeDefinition attributeDefinition = findAttributeDefinition(id);
-        validateVersion(attributeDefinition, request.getVersion());
+        validateVersion(attributeDefinition, request.version());
 
-        if (request.isNamePresent()) {
-            attributeDefinition.setName(request.getName());
-        }
+        mapper.partialUpdate(request, attributeDefinition);
 
         flushUpdate();
 
