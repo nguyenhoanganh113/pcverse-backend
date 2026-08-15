@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.Check;
 import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.type.SqlTypes;
 
@@ -134,7 +133,7 @@ public class Product extends AbstractAuditingEntity {
         attributeValue.setProduct(this);
     }
 
-    public void removeAttributeValue(ProductAttributeValue attributeValue) {
+    public void removeProductAttributeValue(ProductAttributeValue attributeValue) {
         attributeValues.remove(attributeValue);
         attributeValue.setProduct(null);
     }

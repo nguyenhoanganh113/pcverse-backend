@@ -3,6 +3,7 @@ package com.pcverse.mapper;
 import com.pcverse.dto.request.CreateProductRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.response.AdminProductResponse;
+import com.pcverse.dto.response.ProductAttributesResponse;
 import com.pcverse.entity.Product;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -14,7 +15,10 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.ERROR,
-        uses = ProductImageMapper.class
+        uses = {
+                ProductImageMapper.class,
+                ProductAttributeValueMapper.class
+        }
 )
 public interface ProductMapper {
 
@@ -65,5 +69,7 @@ public interface ProductMapper {
     @Mapping(target = "inStock", expression = "java(product.isInStock())")
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
     AdminProductResponse toResponse(Product product);
+
+    ProductAttributesResponse toAttributesResponse(Product product);
 
 }

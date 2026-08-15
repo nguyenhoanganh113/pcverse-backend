@@ -10,7 +10,7 @@ public record UpdateProductAttributesRequest(
 
         @NotNull(message = "Attribute values must not be null")
         @Valid
-        List<@NotNull(message = "Attribute value must not be null") @Valid ProductAttributeValueRequest> attributeValues,
+        List<@NotNull(message = "Attribute value must not be null") @Valid ProductAttributeValueRequest> ProductAttributeValues,
 
         @NotNull(message = "Version must not be null")
         @PositiveOrZero(message = "Version must be greater than or equal to 0")
