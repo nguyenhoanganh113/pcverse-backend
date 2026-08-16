@@ -11,9 +11,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Arrays;
@@ -107,6 +109,58 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(
                 ErrorCode.VALIDATION_ERROR.getHttpStatus()
         ).body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException exception,
+            WebRequest request
+    ) {
+        FieldErrorResponse detail = new FieldErrorResponse(
+                exception.getParameterName(),
+                "Required request parameter '"
+                        + exception.getParameterName()
+                        + "' is missing"
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.VALIDATION_ERROR,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.VALIDATION_ERROR.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(
+            HandlerMethodValidationException exception,
+            WebRequest request
+    ) {
+        List<FieldErrorResponse> details = exception
+                .getParameterValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors()
+                        .stream()
+                        .map(error -> new FieldErrorResponse(
+                                Objects.requireNonNullElse(
+                                        result.getMethodParameter().getParameterName(),
+                                        "requestParameter"
+                                ),
+                                error.getDefaultMessage()
+                        )))
+                .toList();
+
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.VALIDATION_ERROR,
+                request,
+                details
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.VALIDATION_ERROR.getHttpStatus())
+                .body(response);
     }
 
     @ExceptionHandler(value = HttpMessageNotReadableException.class)
