@@ -41,6 +41,18 @@ public class AdminBrandController {
                         .build();
     }
 
+    @GetMapping("/{brandId}")
+    @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
+    public ApiResponse<BrandResponse> getById(
+            @PathVariable String brandId
+    ) {
+        return ApiResponse.<BrandResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Brand retrieved successfully")
+                .data(brandService.getById(brandId))
+                .build();
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
     public ApiResponse<PaginationResponse<BrandResponse>> search(

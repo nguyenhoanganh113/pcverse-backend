@@ -17,6 +17,7 @@ import com.pcverse.repository.AttributeOptionRepository;
 import com.pcverse.repository.ProductAttributeValueRepository;
 import com.pcverse.repository.specification.AttributeOptionSpecification;
 import com.pcverse.service.AttributeOptionService;
+import com.pcverse.utils.ConstraintUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -77,9 +78,16 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
              * Phòng trường hợp hai request đồng thời cùng tạo một code.
              * Unique constraint trong database sẽ là lớp bảo vệ cuối cùng.
              */
-            throw new AppException(
-                    ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS
-            );
+            if (ConstraintUtils.hasConstraint(
+                    exception,
+                    "uk_attribute_option_code"
+            )) {
+                throw new AppException(
+                        ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS
+                );
+            }
+
+            throw exception;
         }
     }
 
@@ -211,7 +219,16 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(ErrorCode.ATTRIBUTE_OPTION_CONCURRENT_UPDATE);
         } catch (DataIntegrityViolationException exception) {
-            throw new AppException(ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS);
+            if (ConstraintUtils.hasConstraint(
+                    exception,
+                    "uk_attribute_option_code"
+            )) {
+                throw new AppException(
+                        ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS
+                );
+            }
+
+            throw exception;
         }
     }
     @Override

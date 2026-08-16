@@ -14,6 +14,7 @@ import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductAttributeValueRepository;
 import com.pcverse.service.CategoryAttributeService;
+import com.pcverse.utils.ConstraintUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -73,7 +74,16 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
             saved = categoryAttributeRepository.saveAndFlush(categoryAttribute);
 
         } catch (DataIntegrityViolationException exception) {
-            throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS);
+            if (ConstraintUtils.hasConstraint(
+                    exception,
+                    "uk_category_attribute"
+            )) {
+                throw new AppException(
+                        ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS
+                );
+            }
+
+            throw exception;
         }
 
         return categoryAttributeMapper.toResponse(saved);

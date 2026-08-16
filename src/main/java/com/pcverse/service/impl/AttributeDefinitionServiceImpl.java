@@ -16,6 +16,7 @@ import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.ProductAttributeValueRepository;
 import com.pcverse.repository.specification.AttributeDefinitionSpecification;
 import com.pcverse.service.AttributeDefinitionService;
+import com.pcverse.utils.ConstraintUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -53,9 +54,16 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
             attributeDefinitionRepository
                     .saveAndFlush(attributeDefinition);
         } catch (DataIntegrityViolationException exception) {
-            throw new AppException(
-                    ErrorCode.ATTRIBUTE_DEFINITION_ALREADY_EXISTS
-            );
+            if (ConstraintUtils.hasConstraint(
+                    exception,
+                    "uk_attribute_definitions_code"
+            )) {
+                throw new AppException(
+                        ErrorCode.ATTRIBUTE_DEFINITION_ALREADY_EXISTS
+                );
+            }
+
+            throw exception;
         }
 
         log.info(
