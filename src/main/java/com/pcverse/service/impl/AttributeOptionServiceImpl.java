@@ -8,6 +8,7 @@ import com.pcverse.dto.response.AttributeOptionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.AttributeDefinition;
 import com.pcverse.entity.AttributeOption;
+import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.AttributeOptionMapper;
@@ -219,6 +220,17 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             String attributeDefinitionId,
             String attributeOptionId,
             UpdateAttributeOptionStatusRequest request) {
+
+        boolean inUseByActiveProduct = productAttributeValueRepository
+                .existsByAttributeOption_IdAndProduct_ProductStatus(
+                                attributeOptionId,
+                                ProductStatus.ACTIVE
+                );
+
+        // Nếu đang deactive thì phải check xem AttributeOption có đang được sử dụng với Product nào đang ACTIVE không?
+        if (!request.active() && inUseByActiveProduct) {
+            throw new AppException(ErrorCode.ATTRIBUTE_OPTION_IN_USE);
+        }
 
         AttributeOption attributeOption = attributeOptionRepository
                 .findByIdAndAttributeDefinitionId(

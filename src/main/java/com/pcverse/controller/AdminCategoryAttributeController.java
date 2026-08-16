@@ -6,6 +6,7 @@ import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.CategoryAttributeResponse;
 import com.pcverse.service.CategoryAttributeService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -99,7 +100,7 @@ public class AdminCategoryAttributeController {
     public ApiResponse<Void> delete(
             @PathVariable String categoryId,
             @PathVariable String categoryAttributeId,
-            @RequestParam(required = false) Long version
+            @RequestParam @PositiveOrZero(message = "Version must be greater than or equal to 0") Long version
     ) {
         categoryAttributeService.delete(
                 categoryId,

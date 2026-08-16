@@ -7,6 +7,7 @@ import com.pcverse.dto.response.AttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.request.UpdateAttributeDefinitionStatusRequest;
 import com.pcverse.entity.AttributeDefinition;
+import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.AttributeDefinitionMapper;
@@ -166,11 +167,22 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
     @Override
     @Transactional
     public AttributeDefinitionResponse updateStatus(
-            String id,
+            String attributeDefinitionId,
             UpdateAttributeDefinitionStatusRequest request
     ) {
-        AttributeDefinition attributeDefinition =
-                findAttributeDefinition(id);
+
+        boolean inUseByActiveProduct = productAttributeValueRepository
+                .existsByAttributeDefinition_IdAndProduct_ProductStatus(
+                                attributeDefinitionId,
+                                ProductStatus.ACTIVE
+                );
+
+        // Nếu đang deactive AttributeDefinition nào thì phải xem AttributeDefinition có đang được sử dụng bởi Product nào không?
+        if (!request.active() && inUseByActiveProduct) {
+            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_IN_USE);
+        }
+
+        AttributeDefinition attributeDefinition = findAttributeDefinition(attributeDefinitionId);
 
         validateVersion(attributeDefinition, request.version());
 

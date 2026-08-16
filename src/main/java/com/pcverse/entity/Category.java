@@ -39,7 +39,7 @@ public class Category extends AbstractAuditingEntity {
     @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false, length = 140)
+    @Column(nullable = false, length = 150)
     private String slug;
 
     @Column(columnDefinition = "TEXT")

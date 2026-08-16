@@ -43,6 +43,16 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
     @EntityGraph(attributePaths = {"category", "brand"})
     Optional<Product> findById(String id);
 
+    @EntityGraph(attributePaths = {
+            "attributeValues",
+            "attributeValues.attributeDefinition",
+            "attributeValues.attributeOption"
+    })
+    @Query("select product from Product product where product.id = :productId")
+    Optional<Product> findByIdWithAttributeValues(
+            @Param("productId") String productId
+    );
+
     @Override
     @EntityGraph(attributePaths = {"category", "brand"})
     Page<Product> findAll(Specification<Product> specification, Pageable pageable);

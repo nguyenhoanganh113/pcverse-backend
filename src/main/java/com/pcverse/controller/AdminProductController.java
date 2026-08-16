@@ -60,6 +60,18 @@ public class AdminProductController {
                 .build();
     }
 
+    @GetMapping("/{productId}/attributes")
+    @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
+    public ApiResponse<ProductAttributesResponse> getAttributes(
+            @PathVariable String productId
+    ) {
+        return ApiResponse.<ProductAttributesResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Product attributes retrieved successfully")
+                .data(productService.getAttributes(productId))
+                .build();
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
     public ApiResponse<PaginationResponse<AdminProductResponse>> search(
@@ -122,10 +134,8 @@ public class AdminProductController {
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_DELETE')")
     public ApiResponse<Void> delete(
             @PathVariable String productId,
-            @RequestParam(required = false)
-            @PositiveOrZero(
-                    message = "Version must be greater than or equal to 0"
-            )
+            @RequestParam
+            @PositiveOrZero(message = "Version must be greater than or equal to 0")
             Long version
     ) {
         productService.delete(productId, version);

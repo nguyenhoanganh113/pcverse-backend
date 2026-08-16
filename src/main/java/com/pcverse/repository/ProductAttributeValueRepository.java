@@ -1,6 +1,7 @@
 package com.pcverse.repository;
 
 import com.pcverse.entity.ProductAttributeValue;
+import com.pcverse.enums.ProductStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,5 +16,9 @@ public interface ProductAttributeValueRepository extends JpaRepository<ProductAt
             String categoryId,
             String attributeDefinitionId
     );
+
+    boolean existsByAttributeOption_IdAndProduct_ProductStatus(String attributeOptionId, ProductStatus productStatus);
+
+    boolean existsByAttributeDefinition_IdAndProduct_ProductStatus(String attributeDefinitionId, ProductStatus productStatus);
 
 }

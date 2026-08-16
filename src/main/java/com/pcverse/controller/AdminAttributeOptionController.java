@@ -9,8 +9,11 @@ import com.pcverse.dto.response.AttributeOptionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.AttributeOptionService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -58,8 +61,14 @@ public class AdminAttributeOptionController {
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_VIEW')")
     public ApiResponse<PaginationResponse<AttributeOptionResponse>> searchForAdmin(
             @PathVariable String attributeDefinitionId,
-            @ModelAttribute AttributeOptionSearchRequest request,
-            Pageable pageable) {
+            @Valid @ModelAttribute AttributeOptionSearchRequest request,
+            @PageableDefault(
+                    size = 20,
+                    sort = {"displayOrder", "id"},
+                    direction = Sort.Direction.ASC
+            )
+            Pageable pageable
+    ) {
 
         return ApiResponse.<PaginationResponse<AttributeOptionResponse>>builder()
                 .code(HttpStatus.OK.value())
@@ -79,7 +88,7 @@ public class AdminAttributeOptionController {
     public ApiResponse<Void> delete(
             @PathVariable String attributeDefinitionId,
             @PathVariable String attributeOptionId,
-            @RequestParam Long version
+            @RequestParam @PositiveOrZero(message = "Version must be greater than or equal to 0") Long version
     ) {
         attributeOptionService.delete(attributeDefinitionId, attributeOptionId, version);
 

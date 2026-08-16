@@ -9,6 +9,7 @@ import com.pcverse.dto.response.BrandResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.BrandService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -88,7 +89,9 @@ public class AdminBrandController {
     @PreAuthorize("hasAuthority('ROLE_BRAND_DELETE')")
     public ApiResponse<Void> delete(
             @PathVariable String brandId,
-            @RequestParam(required = false) Long version
+            @RequestParam
+            @PositiveOrZero(message = "Version must be greater than or equal to 0")
+            Long version
     ) {
         brandService.delete(brandId, version);
 

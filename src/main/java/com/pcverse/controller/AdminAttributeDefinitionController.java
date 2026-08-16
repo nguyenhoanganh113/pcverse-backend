@@ -9,6 +9,7 @@ import com.pcverse.dto.response.AttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.AttributeDefinitionService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -18,13 +19,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/admin/attributes")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_MANAGE')")
+@PreAuthorize("denyAll()")
 public class AdminAttributeDefinitionController {
 
     private final AttributeDefinitionService attributeDefinitionService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_CREATE')")
     public ApiResponse<AttributeDefinitionResponse> create(@Valid @RequestBody CreateAttributeDefinitionRequest request) {
         var data = attributeDefinitionService.create(request);
         return ApiResponse.<AttributeDefinitionResponse>builder()
@@ -35,6 +37,7 @@ public class AdminAttributeDefinitionController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_VIEW')")
     public ApiResponse<PaginationResponse<AttributeDefinitionResponse>> search(
             @Valid @ModelAttribute
             AttributeDefinitionSearchRequest request,
@@ -49,6 +52,7 @@ public class AdminAttributeDefinitionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_READ')")
     public ApiResponse<AttributeDefinitionResponse> get(@PathVariable String id) {
         return ApiResponse
                 .<AttributeDefinitionResponse>builder()
@@ -59,6 +63,7 @@ public class AdminAttributeDefinitionController {
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_UPDATE')")
     public ApiResponse<AttributeDefinitionResponse> update(
             @PathVariable String id,
             @Valid @RequestBody UpdateAttributeDefinitionRequest request
@@ -71,12 +76,13 @@ public class AdminAttributeDefinitionController {
                 .build();
     }
 
-    @PatchMapping("/{id}/status")
+    @PatchMapping("/{attributeDefinitionId}/status")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_UPDATE')")
     public ApiResponse<AttributeDefinitionResponse> updateStatus(
-            @PathVariable String id,
+            @PathVariable String attributeDefinitionId,
             @Valid @RequestBody UpdateAttributeDefinitionStatusRequest request
     ) {
-        var data = attributeDefinitionService.updateStatus(id, request);
+        var data = attributeDefinitionService.updateStatus(attributeDefinitionId, request);
         return ApiResponse.<AttributeDefinitionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute definition status updated successfully")
@@ -85,9 +91,10 @@ public class AdminAttributeDefinitionController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_DELETE')")
     public ApiResponse<Void> delete(
             @PathVariable String id,
-            @RequestParam Long version
+            @RequestParam @PositiveOrZero(message = "Version must be greater than or equal to 0") Long version
     ) {
         attributeDefinitionService.delete(id, version);
         return ApiResponse.<Void>builder()

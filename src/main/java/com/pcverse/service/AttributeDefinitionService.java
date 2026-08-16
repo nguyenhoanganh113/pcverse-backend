@@ -21,7 +21,7 @@ public interface AttributeDefinitionService {
     void delete(String id, Long version);
 
     AttributeDefinitionResponse updateStatus(
-            String id,
+            String attributeDefinitionId,
             UpdateAttributeDefinitionStatusRequest request
     );
 

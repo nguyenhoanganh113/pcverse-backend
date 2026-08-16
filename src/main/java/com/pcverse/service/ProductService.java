@@ -21,6 +21,8 @@ public interface ProductService {
 
     AdminProductResponse getById(String id);
 
+    ProductAttributesResponse getAttributes(String id);
+
     AdminProductResponse update(String id, UpdateProductRequest request);
 
     AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request);

@@ -9,6 +9,7 @@ import com.pcverse.dto.response.CategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.CategoryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -108,8 +109,11 @@ public class AdminCategoryController {
     @DeleteMapping("/{categoryId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_DELETE')")
     public ApiResponse<Void> delete(
-            @PathVariable String categoryId,
-            @RequestParam(required = false) Long version
+            @PathVariable
+            String categoryId,
+            @RequestParam
+            @PositiveOrZero(message = "Version must be greater than or equal to 0")
+            Long version
     ) {
         categoryService.delete(categoryId, version);
 

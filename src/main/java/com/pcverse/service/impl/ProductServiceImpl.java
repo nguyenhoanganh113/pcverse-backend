@@ -123,6 +123,15 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ProductAttributesResponse getAttributes(String id) {
+        Product product = productRepository.findByIdWithAttributeValues(id)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        return productMapper.toAttributesResponse(product);
+    }
+
+    @Override
     @Transactional
     public AdminProductResponse update(
             String id,
@@ -198,7 +207,7 @@ public class ProductServiceImpl implements ProductService {
         Map<String, AttributeOption> selectedOptionByDefinitionId = new HashMap<>();
 
         Set<String> requestDefinitionIds = new HashSet<>();
-        for (ProductAttributeValueRequest attributeRequest : request.ProductAttributeValues()) {
+        for (ProductAttributeValueRequest attributeRequest : request.productAttributeValues()) {
 
             String attributeDefinitionId = attributeRequest.attributeDefinitionId();
 
@@ -218,13 +227,29 @@ public class ProductServiceImpl implements ProductService {
             }
 
             AttributeOption attributeOption = attributeOptionRepository
-                    .findByIdAndAttributeDefinitionId(attributeRequest.attributeOptionId(), categoryAttribute.getId())
+                    .findByIdAndAttributeDefinitionId(attributeRequest.attributeOptionId(), attributeDefinitionId)
                     .orElseThrow(() -> new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND));
             if (!attributeOption.isActive()) {
                 throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
             }
 
             selectedOptionByDefinitionId.put(attributeDefinitionId, attributeOption);
+        }
+
+        if (product.getProductStatus() == ProductStatus.ACTIVE) {
+            boolean missingRequiredAttribute =  categoryAttributes.stream()
+                    .filter(CategoryAttribute::isRequired)
+                    .map(categoryAttribute ->
+                            categoryAttribute
+                                    .getAttributeDefinition()
+                                    .getId()
+                    )
+                    .anyMatch(requiredAttributeDefinitionId ->
+                            !requestDefinitionIds.contains(requiredAttributeDefinitionId));
+
+            if (missingRequiredAttribute) {
+                throw new AppException(ErrorCode.PRODUCT_REQUIRED_ATTRIBUTES_MISSING);
+            }
         }
 
         Map<String, ProductAttributeValue> existingValueByDefinitionId = product.getAttributeValues().stream()
