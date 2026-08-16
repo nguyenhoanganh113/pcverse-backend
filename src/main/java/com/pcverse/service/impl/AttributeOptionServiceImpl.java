@@ -221,17 +221,6 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             String attributeOptionId,
             UpdateAttributeOptionStatusRequest request) {
 
-        boolean inUseByActiveProduct = productAttributeValueRepository
-                .existsByAttributeOption_IdAndProduct_ProductStatus(
-                                attributeOptionId,
-                                ProductStatus.ACTIVE
-                );
-
-        // Nếu đang deactive thì phải check xem AttributeOption có đang được sử dụng với Product nào đang ACTIVE không?
-        if (!request.active() && inUseByActiveProduct) {
-            throw new AppException(ErrorCode.ATTRIBUTE_OPTION_IN_USE);
-        }
-
         AttributeOption attributeOption = attributeOptionRepository
                 .findByIdAndAttributeDefinitionId(
                         attributeOptionId,
@@ -247,17 +236,28 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
         validateVersion(attributeOption, request.version());
 
-        boolean newStatus = request.active();
+        boolean requestedActive = request.active();
 
-        if (attributeOption.isActive() == newStatus) {
+        if (attributeOption.isActive() == requestedActive) {
             return attributeOptionMapper.toResponse(attributeOption);
         }
 
-        if (newStatus && !attributeOption.getAttributeDefinition().isActive()) {
+        if (!requestedActive) {
+            // Có Product ACTIVE nào đang sử dụng AttributeOption này hay không?
+            boolean inUseByActiveProduct = productAttributeValueRepository
+                    .existsByAttributeOption_IdAndProduct_ProductStatus(
+                            attributeOptionId,
+                            ProductStatus.ACTIVE
+                    );
+
+            if (inUseByActiveProduct) {
+                throw new AppException(ErrorCode.ATTRIBUTE_OPTION_IN_USE);
+            }
+        } else if (!attributeOption.getAttributeDefinition().isActive()) {
+            // Chỉ được activate AttributeOption khi AttributeDefinition vẫn active.
             throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
         }
-
-        attributeOption.setActive(newStatus);
+        attributeOption.setActive(requestedActive);
 
         try {
             attributeOptionRepository.flush();

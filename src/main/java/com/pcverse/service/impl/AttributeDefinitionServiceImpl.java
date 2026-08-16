@@ -171,17 +171,6 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
             UpdateAttributeDefinitionStatusRequest request
     ) {
 
-        boolean inUseByActiveProduct = productAttributeValueRepository
-                .existsByAttributeDefinition_IdAndProduct_ProductStatus(
-                                attributeDefinitionId,
-                                ProductStatus.ACTIVE
-                );
-
-        // Nếu đang deactive AttributeDefinition nào thì phải xem AttributeDefinition có đang được sử dụng bởi Product nào không?
-        if (!request.active() && inUseByActiveProduct) {
-            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_IN_USE);
-        }
-
         AttributeDefinition attributeDefinition = findAttributeDefinition(attributeDefinitionId);
 
         validateVersion(attributeDefinition, request.version());
@@ -189,6 +178,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
         boolean requestedStatus = request.active();
 
         if (attributeDefinition.isActive() == requestedStatus) {
+
             log.info(
                     "Attribute definition status unchanged: attributeDefinitionId={}, active={}",
                     attributeDefinition.getId(),
@@ -196,6 +186,28 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
             );
 
             return mapper.toResponse(attributeDefinition);
+        }
+
+        // Nếu đang inactive AttributeDefinition này thì phải kiểm tra xem trong ProductAttributeValue
+
+        if (!requestedStatus) {
+
+            // có product nào có status ACTIVE sử dụng AttributeDefinition này hay không ?
+            boolean inUseByActiveProduct = productAttributeValueRepository
+                    .existsByAttributeDefinition_IdAndProduct_ProductStatus(
+                            attributeDefinitionId,
+                            ProductStatus.ACTIVE
+                    );
+
+            // tương tự kiểm tra Category ACTIVE
+            boolean inUseByCategoryProduct = categoryAttributeRepository
+                    .existsByAttributeDefinition_IdAndCategory_ActiveTrue(
+                            attributeDefinitionId
+                    );
+
+            if (inUseByActiveProduct || inUseByCategoryProduct) {
+                throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_IN_USE);
+            }
         }
 
         attributeDefinition.setActive(requestedStatus);

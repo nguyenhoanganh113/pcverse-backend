@@ -19,11 +19,6 @@ import lombok.*;
                 @Index(
                         name = "idx_category_attributes_attribute_definition",
                         columnList = "attribute_definition_id"
-                ),
-                @Index(
-                        name = "idx_category_attributes_filters",
-                        columnList =
-                                "category_id, is_filterable, display_order"
                 )
         }
 )

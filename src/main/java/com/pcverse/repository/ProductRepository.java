@@ -44,6 +44,8 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
     Optional<Product> findById(String id);
 
     @EntityGraph(attributePaths = {
+            "category",
+            "brand",
             "attributeValues",
             "attributeValues.attributeDefinition",
             "attributeValues.attributeOption"

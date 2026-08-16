@@ -125,8 +125,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public ProductAttributesResponse getAttributes(String id) {
-        Product product = productRepository.findByIdWithAttributeValues(id)
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        Product product = findProductWithAttributeValues(id);
 
         return productMapper.toAttributesResponse(product);
     }
@@ -141,7 +140,7 @@ public class ProductServiceImpl implements ProductService {
             throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
         }
 
-        Product product = findProduct(id);
+        Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
         updateCategory(product, request.categoryId());
@@ -169,7 +168,7 @@ public class ProductServiceImpl implements ProductService {
             String id,
             UpdateProductStatusRequest request
     ) {
-        Product product = findProduct(id);
+        Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
         if (product.getProductStatus() == request.productStatus()) {
@@ -188,7 +187,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request) {
-        Product product = findProduct(id);
+        Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
         List<CategoryAttribute> categoryAttributes = categoryAttributeRepository
@@ -411,6 +410,26 @@ public class ProductServiceImpl implements ProductService {
             throw new AppException(ErrorCode.PRODUCT_IMAGE_REQUIRED);
         }
 
+        // Check xem product hiện tại đang xét có AttributeDefinition đang INACTIVE hay không ?
+        boolean hasInactiveDefinition = product.getAttributeValues()
+                .stream()
+                .anyMatch(value ->
+                        !value.getAttributeDefinition().isActive()
+                );
+        if (hasInactiveDefinition) {
+            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
+        }
+
+        // Check xem product hiện tại đang xét có AttributeOption nào đang INACTIVE hay không ?
+        boolean hasInactiveOption = product.getAttributeValues()
+                .stream()
+                .anyMatch(value ->
+                        !value.getAttributeOption().isActive()
+                );
+        if (hasInactiveOption) {
+            throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
+        }
+
         // Lấy ra các CategoryAttribute required khi mà tạo product
         List<CategoryAttribute> requiredAttributes = categoryAttributeRepository
                 .findAllByCategory_Id(
@@ -465,6 +484,13 @@ public class ProductServiceImpl implements ProductService {
 
     private Product findProduct(String id) {
         return productRepository.findById(id)
+                .orElseThrow(() ->
+                        new AppException(ErrorCode.PRODUCT_NOT_FOUND)
+                );
+    }
+
+    private Product findProductWithAttributeValues(String id) {
+        return productRepository.findByIdWithAttributeValues(id)
                 .orElseThrow(() ->
                         new AppException(ErrorCode.PRODUCT_NOT_FOUND)
                 );

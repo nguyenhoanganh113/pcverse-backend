@@ -142,17 +142,36 @@ public class CategoryServiceImpl implements CategoryService {
             return categoryMapper.toResponse(category);
         }
 
-        // Nếu trạng thái đang từ active sang inactive thì
-        // phải kiểm tra có product nào vẫn đang được gán với category này thì throw exception để rollback
-        if (!requestedActive
-                && productRepository.existsByCategory_IdAndProductStatus(id, ProductStatus.ACTIVE)
-        ) {
+        // Nếu trạng thái đang từ inactive sang active thì
+        if (requestedActive) {
+            // Kiểm tra xem CategoryAttribute có row nào mà AttributeDefinition đang INACTIVE hay không ?
+            validateCanActivate(id);
+        } else if (productRepository.existsByCategory_IdAndProductStatus(id, ProductStatus.ACTIVE)) {
+            // Nếu chuyển từ ACTIVE sang INACTIVE thì phải check xem có product nào đang ACTIVE
+            // được liên kết với Category này đang ACTIVE không ?
             throw new AppException(ErrorCode.CATEGORY_HAS_ACTIVE_PRODUCTS);
         }
 
         category.setActive(requestedActive);
         flushUpdate();
         return categoryMapper.toResponse(category);
+    }
+
+    private void validateCanActivate(String categoryId) {
+        boolean hasInactiveDefinition = categoryAttributeRepository
+                .findAllByCategory_Id(categoryId)
+                .stream()
+                .anyMatch(categoryAttribute ->
+                        !categoryAttribute
+                                .getAttributeDefinition()
+                                .isActive()
+                );
+
+        if (hasInactiveDefinition) {
+            throw new AppException(
+                    ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE
+            );
+        }
     }
 
     @Override
