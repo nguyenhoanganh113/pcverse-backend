@@ -5,6 +5,10 @@ spring:
   application:
     name: pc-verse
 
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/pc_verse}
     username: ${DB_USERNAME:postgres}

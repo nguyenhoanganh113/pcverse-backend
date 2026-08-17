@@ -4,15 +4,23 @@ import com.pcverse.dto.response.ErrorResponse;
 import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -21,6 +29,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 @RestControllerAdvice
 @Slf4j
@@ -41,6 +50,87 @@ public class GlobalExceptionHandler {
         ErrorResponse response = buildErrorCodeResponse(errorCode, request, null);
 
         return ResponseEntity.status(errorCode.getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupportedException(
+            HttpMediaTypeNotSupportedException ex,
+            WebRequest request
+    ) {
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                request,
+                null
+        );
+
+        return ResponseEntity.status(ErrorCode.UNSUPPORTED_MEDIA_TYPE.getHttpStatus()).body(response);
+    }
+
+    /*
+     * NoResourceFoundException: request không khớp controller và Spring cũng
+     * không tìm thấy static resource tương ứng.
+     * NoHandlerFoundException: DispatcherServlet không tìm thấy controller
+     * handler phù hợp với request.
+     * Cả hai trường hợp đều biểu thị endpoint/resource không tồn tại và trả 404.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleEndpointNotFound(Exception exception, WebRequest request) {
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.ENDPOINT_NOT_FOUND,
+                request,
+                null
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.ENDPOINT_NOT_FOUND.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception,
+            WebRequest request
+    ) {
+        String supportedMethods = exception.getSupportedMethods() == null
+                ? "none"
+                : String.join(", ", exception.getSupportedMethods());
+
+        FieldErrorResponse detail = new FieldErrorResponse(
+                "method",
+                "HTTP method '" + exception.getMethod()
+                        + "' is not supported. Supported methods: "
+                        + supportedMethods
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.METHOD_NOT_ALLOWED,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.METHOD_NOT_ALLOWED.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSortField(
+            PropertyReferenceException exception,
+            WebRequest request
+    ) {
+        String propertyName = exception.getPropertyName();
+        FieldErrorResponse detail = new FieldErrorResponse(
+                "sort",
+                "Unknown sort field '" + propertyName + "'"
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.INVALID_SORT_FIELD,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_SORT_FIELD.getHttpStatus())
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)
@@ -91,6 +181,58 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(
                 ErrorCode.VALIDATION_ERROR.getHttpStatus()
         ).body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException exception,
+            WebRequest request
+    ) {
+        FieldErrorResponse detail = new FieldErrorResponse(
+                exception.getParameterName(),
+                "Required request parameter '"
+                        + exception.getParameterName()
+                        + "' is missing"
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.VALIDATION_ERROR,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.VALIDATION_ERROR.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(
+            HandlerMethodValidationException exception,
+            WebRequest request
+    ) {
+        List<FieldErrorResponse> details = exception
+                .getParameterValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors()
+                        .stream()
+                        .map(error -> new FieldErrorResponse(
+                                Objects.requireNonNullElse(
+                                        result.getMethodParameter().getParameterName(),
+                                        "requestParameter"
+                                ),
+                                error.getDefaultMessage()
+                        )))
+                .toList();
+
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.VALIDATION_ERROR,
+                request,
+                details
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.VALIDATION_ERROR.getHttpStatus())
+                .body(response);
     }
 
     @ExceptionHandler(value = HttpMessageNotReadableException.class)
@@ -155,7 +297,42 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(
+            OptimisticLockingFailureException exception,
+            WebRequest request) {
+
+        log.warn(
+                "Optimistic locking conflict: {}",
+                exception.getMessage()
+        );
+
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.OPTIMISTIC_LOCKING_CONFLICT,
+                request,
+                null
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.OPTIMISTIC_LOCKING_CONFLICT.getHttpStatus())
+                .body(response);
+    }
+
     private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {
+        UnrecognizedPropertyException unrecognizedPropertyException = findCause(
+                e,
+                UnrecognizedPropertyException.class
+        );
+        if (unrecognizedPropertyException != null) {
+            String field = extractUnknownFieldName(
+                    unrecognizedPropertyException
+            );
+            return new FieldErrorResponse(
+                    field,
+                    "Unknown field '" + field + "'"
+            );
+        }
+
         Throwable cause = e.getCause();
 
         if (cause instanceof InvalidFormatException invalidFormatException
@@ -173,6 +350,38 @@ public class GlobalExceptionHandler {
         }
 
         return new FieldErrorResponse("requestBody", "Invalid request body or JSON format");
+    }
+
+    private String extractUnknownFieldName(
+            UnrecognizedPropertyException exception
+    ) {
+        String path = extractFieldName(exception);
+        String propertyName = exception.getPropertyName();
+
+        if ("requestBody".equals(path)) {
+            return propertyName;
+        }
+
+        if (path.equals(propertyName)
+                || path.endsWith("." + propertyName)) {
+            return path;
+        }
+
+        return path + "." + propertyName;
+    }
+
+    private <T extends Throwable> T findCause(Throwable throwable, Class<T> causeType) {
+        Throwable cause = throwable;
+
+        while (cause != null) {
+            if (causeType.isInstance(cause)) {
+                return causeType.cast(cause);
+            }
+
+            cause = cause.getCause();
+        }
+
+        return null;
     }
 
     private String extractFieldName(JacksonException exception) {

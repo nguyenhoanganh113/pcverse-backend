@@ -7,6 +7,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
+import com.pcverse.dto.response.AdminUserResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -30,23 +31,23 @@ public interface UserService {
 
     void terminateMySession(Jwt jwt, String sessionId);
 
-    PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
+    PaginationResponse<AdminUserResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable);
 
-    UserDetailsResponse getUserById(String userId);
+    AdminUserResponse getUserById(String userId);
 
-    UserDetailsResponse updateUserStatus(String userId, UserStatus status);
+    AdminUserResponse updateUserStatus(String userId, UserStatus status);
 
-    UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request);
+    AdminUserResponse updateUser(String userId, UpdateAdminUserRequest request);
 
     void deleteUser(String userId);
 
     void resetPassword(String userId, ResetUserPasswordRequest request);
 
-    UserDetailsResponse assignRole(String userId, String roleName);
+    AdminUserResponse assignRole(String userId, String roleName);
 
     User ensureUserExistsFromToken(Jwt jwt);
 
-    UserDetailsResponse removeRole(String userId, String roleName);
+    AdminUserResponse removeRole(String userId, String roleName);
 
     void logoutUser(String userId);
 

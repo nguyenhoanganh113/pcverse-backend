@@ -7,6 +7,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
+import com.pcverse.dto.response.AdminUserResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -14,6 +15,8 @@ import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.entity.Role;
 import com.pcverse.entity.User;
 import com.pcverse.entity.UserHasRole;
+import com.pcverse.enums.SearchType;
+import com.pcverse.enums.UserSearchField;
 import com.pcverse.enums.UserStatus;
 import com.pcverse.event.UserDeletedEvent;
 import com.pcverse.event.UserEmailChangedEvent;
@@ -26,16 +29,18 @@ import com.pcverse.service.KeycloakEmailService;
 import com.pcverse.service.RedisTokenService;
 import com.pcverse.service.RoleService;
 import com.pcverse.service.UserService;
-import com.pcverse.specification.UserSpecification;
+import com.pcverse.repository.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -193,16 +198,50 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<UserDetailsResponse> getAllUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+    public PaginationResponse<AdminUserResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+        Specification<User> searchSpecification =
+                switch (searchRequest.searchType()) {
 
-        // Lấy danh sách user của page hiện tại theo các điều kiện tìm kiếm
-        Page<User> userPage = userRepository.findAll(UserSpecification.filter(searchRequest), pageable);
+                    case DEFAULT ->
+                            UserSpecification.hasKeyword(
+                                    searchRequest.keyword()
+                            );
+
+                    case ATTRIBUTE -> {
+                        validateAttributeSearch(searchRequest);
+
+                        yield UserSpecification.hasAttribute(
+                                searchRequest.field(),
+                                searchRequest.value(),
+                                searchRequest.exact()
+                        );
+                    }
+                };
+
+        Specification<User> specification = searchSpecification;
+
+        /*
+         * Mặc định không lấy user DELETED.
+         *
+         * Nhưng khi admin chủ động tìm:
+         * field=USER_STATUS&value=DELETED
+         * thì cho phép lấy user đã xóa.
+         */
+        if (!isSearchingDeletedUsers(searchRequest)) {
+            specification = UserSpecification
+                    .isNotDeleted()
+                    .and(searchSpecification);
+        }
+
+        Page<User> userPage = userRepository.findAll(
+                specification,
+                pageable
+        );
 
         if (userPage.isEmpty()) {
             return toPaginationResponse(userPage, List.of());
         }
 
-        // Lấy tất cả userId trong page hiện tại
         List<String> userIds = userPage.getContent()
                 .stream()
                 .map(User::getId)
@@ -216,23 +255,24 @@ public class UserServiceImpl implements UserService {
                                 Function.identity()
                         ));
 
-        List<UserDetailsResponse> users = userPage.getContent()
+        List<AdminUserResponse> users = userPage.getContent()
                 .stream()
                 .map(user -> usersWithRolesById.getOrDefault(
                         user.getId(),
                         user
                 ))
-                .map(userMapper::toUserDetailResponse)
+                .map(userMapper::toAdminResponse)
                 .toList();
 
         return toPaginationResponse(userPage, users);
+
     }
 
-    private PaginationResponse<UserDetailsResponse> toPaginationResponse(
+    private PaginationResponse<AdminUserResponse> toPaginationResponse(
             Page<User> userPage,
-            List<UserDetailsResponse> users
+            List<AdminUserResponse> users
     ) {
-        return PaginationResponse.<UserDetailsResponse>builder()
+        return PaginationResponse.<AdminUserResponse>builder()
                 .currentPage(userPage.getNumber())
                 .size(userPage.getSize())
                 .totalPages(userPage.getTotalPages())
@@ -243,16 +283,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetailsResponse getUserById(String userId) {
+    public AdminUserResponse getUserById(String userId) {
         User user = userRepository.findDetailsById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
     @Transactional
-    public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
+    public AdminUserResponse updateUserStatus(String userId, UserStatus status) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -279,12 +319,12 @@ public class UserServiceImpl implements UserService {
             logoutAndRevokeTokens(keycloakId);
         }
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
     @Transactional
-    public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
+    public AdminUserResponse updateUser(String userId, UpdateAdminUserRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -335,7 +375,7 @@ public class UserServiceImpl implements UserService {
             ));
         }
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
@@ -385,7 +425,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDetailsResponse assignRole(String userId, String roleName) {
+    public AdminUserResponse assignRole(String userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -401,7 +441,7 @@ public class UserServiceImpl implements UserService {
         }
 
         keycloakAdminService.assignRealmRole(keycloakId, roleName);
-        return userMapper.toUserDetailResponse(userRepository.save(user));
+        return userMapper.toAdminResponse(userRepository.save(user));
     }
 
     @Override
@@ -438,7 +478,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDetailsResponse removeRole(String userId, String roleName) {
+    public AdminUserResponse removeRole(String userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -471,7 +511,7 @@ public class UserServiceImpl implements UserService {
         // sau đó thu hồi session và các access token đã được cấp trước đó.
         logoutAndRevokeTokens(keycloakId);
 
-        return userMapper.toUserDetailResponse(updatedUser);
+        return userMapper.toAdminResponse(updatedUser);
     }
 
     @Override
@@ -631,10 +671,37 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    private void validateAttributeSearch(
+            AdminUserSearchRequest request
+    ) {
+        if (request.field() == null) {
+            throw new AppException(
+                    ErrorCode.USER_SEARCH_FIELD_REQUIRED
+            );
+        }
+
+        if (!StringUtils.hasText(request.value())) {
+            throw new AppException(
+                    ErrorCode.USER_SEARCH_VALUE_REQUIRED
+            );
+        }
+    }
+
     private void validateUsernameAvailable(String username) {
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
         }
+    }
+
+    // Admin tìm các user đã soft delete
+    private boolean isSearchingDeletedUsers(
+            AdminUserSearchRequest request
+    ) {
+        return request.searchType() == SearchType.ATTRIBUTE
+                && request.field() == UserSearchField.USER_STATUS
+                && StringUtils.hasText(request.value())
+                && UserStatus.DELETED.name()
+                .equalsIgnoreCase(request.value().trim());
     }
 
     private void requireActiveUser(User user) {

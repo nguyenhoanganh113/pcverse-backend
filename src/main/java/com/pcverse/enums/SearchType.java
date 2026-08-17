@@ -1,6 +1,6 @@
 package com.pcverse.enums;
 
-public enum UserSearchMode {
+public enum SearchType {
     DEFAULT,
     ATTRIBUTE
 }

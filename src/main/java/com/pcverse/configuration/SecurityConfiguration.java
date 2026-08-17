@@ -28,7 +28,7 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfiguration {
 
-    private static final String[] POST_PUBLICS = {
+    private static final String[] PUBLIC_POST_ENDPOINTS = {
             "/api/v1/registrations"
     };
 
@@ -47,7 +47,7 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                        .requestMatchers(HttpMethod.POST, POST_PUBLICS).permitAll()
+                        .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                         .requestMatchers(
                                 "/api/v1/admin/**",
                                 "/api/v1/users/**"
@@ -76,6 +76,7 @@ public class SecurityConfiguration {
         configuration.setAllowedMethods(List.of(
                 "GET",
                 "POST",
+                "PUT",
                 "PATCH",
                 "DELETE",
                 "OPTIONS"
@@ -96,6 +97,10 @@ public class SecurityConfiguration {
         );
         source.registerCorsConfiguration(
                 "/api/v1/users/**",
+                configuration
+        );
+        source.registerCorsConfiguration(
+                "/api/v1/admin/**",
                 configuration
         );
         return source;
