@@ -141,14 +141,6 @@ public class BrandServiceImpl implements BrandService {
             return brandMapper.toAdminResponse(brand);
         }
 
-        if (!requestedActive
-                && productRepository.existsByBrand_IdAndProductStatus(
-                        id,
-                        ProductStatus.ACTIVE
-                )) {
-            throw new AppException(ErrorCode.BRAND_HAS_ACTIVE_PRODUCTS);
-        }
-
         brand.setActive(requestedActive);
 
         try {

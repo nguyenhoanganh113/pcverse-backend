@@ -29,16 +29,6 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
 
     boolean existsByBrand_Id(String brandId);
 
-    boolean existsByCategory_IdAndProductStatus(
-            String categoryId,
-            com.pcverse.enums.ProductStatus productStatus
-    );
-
-    boolean existsByBrand_IdAndProductStatus(
-            String brandId,
-            com.pcverse.enums.ProductStatus productStatus
-    );
-
     @Override
     @EntityGraph(attributePaths = {"category", "brand"})
     Optional<Product> findById(String id);

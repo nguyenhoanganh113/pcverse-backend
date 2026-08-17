@@ -41,9 +41,6 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
         Category category = categoryRepository
                 .findById(categoryId)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
-        if (!category.isActive()) {
-            throw new AppException(ErrorCode.CATEGORY_INACTIVE);
-        }
 
         AttributeDefinition attributeDefinition = attributeDefinitionRepository
                 .findById(request.attributeDefinitionId())
