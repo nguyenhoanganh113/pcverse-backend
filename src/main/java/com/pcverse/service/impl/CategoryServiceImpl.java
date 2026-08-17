@@ -4,7 +4,7 @@ import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryStatusRequest;
-import com.pcverse.dto.response.CategoryResponse;
+import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.Category;
 import com.pcverse.enums.ProductStatus;
@@ -40,7 +40,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public CategoryResponse create(CreateCategoryRequest request) {
+    public AdminCategoryResponse create(CreateCategoryRequest request) {
 
         String slug = SlugUtils.generateSlug(request.name());
 
@@ -66,12 +66,12 @@ public class CategoryServiceImpl implements CategoryService {
            throw exception;
        }
 
-       return categoryMapper.toResponse(category);
+       return categoryMapper.toAdminResponse(category);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<CategoryResponse> searchForAdmin(
+    public PaginationResponse<AdminCategoryResponse> searchForAdmin(
             CategorySearchRequest request,
             Pageable pageable
     ) {
@@ -80,11 +80,11 @@ public class CategoryServiceImpl implements CategoryService {
                 CategorySpecification.hasActive(request.active())
         );
 
-        Page<CategoryResponse> page = categoryRepository
+        Page<AdminCategoryResponse> page = categoryRepository
                 .findAll(specification, pageable)
-                .map(categoryMapper::toResponse);
+                .map(categoryMapper::toAdminResponse);
 
-        return PaginationResponse.<CategoryResponse>builder()
+        return PaginationResponse.<AdminCategoryResponse>builder()
                 .currentPage(page.getNumber())
                 .size(page.getSize())
                 .totalPages(page.getTotalPages())
@@ -95,13 +95,13 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public CategoryResponse getById(String id) {
-        return categoryMapper.toResponse(findCategory(id));
+    public AdminCategoryResponse getById(String id) {
+        return categoryMapper.toAdminResponse(findCategory(id));
     }
 
     @Override
     @Transactional
-    public CategoryResponse update(
+    public AdminCategoryResponse update(
             String id,
             UpdateCategoryRequest request
     ) {
@@ -125,12 +125,12 @@ public class CategoryServiceImpl implements CategoryService {
         categoryMapper.partialUpdate(request, category);
 
         flushUpdate();
-        return categoryMapper.toResponse(category);
+        return categoryMapper.toAdminResponse(category);
     }
 
     @Override
     @Transactional
-    public CategoryResponse updateStatus(
+    public AdminCategoryResponse updateStatus(
             String id,
             UpdateCategoryStatusRequest request
     ) {
@@ -139,22 +139,18 @@ public class CategoryServiceImpl implements CategoryService {
 
         boolean requestedActive = request.active();
         if (category.isActive() == requestedActive) {
-            return categoryMapper.toResponse(category);
+            return categoryMapper.toAdminResponse(category);
         }
 
         // Nếu trạng thái đang từ inactive sang active thì
         if (requestedActive) {
             // Kiểm tra xem CategoryAttribute có row nào mà AttributeDefinition đang INACTIVE hay không ?
             validateCanActivate(id);
-        } else if (productRepository.existsByCategory_IdAndProductStatus(id, ProductStatus.ACTIVE)) {
-            // Nếu chuyển từ ACTIVE sang INACTIVE thì phải check xem có product nào đang ACTIVE
-            // được liên kết với Category này đang ACTIVE không ?
-            throw new AppException(ErrorCode.CATEGORY_HAS_ACTIVE_PRODUCTS);
         }
 
         category.setActive(requestedActive);
         flushUpdate();
-        return categoryMapper.toResponse(category);
+        return categoryMapper.toAdminResponse(category);
     }
 
     private void validateCanActivate(String categoryId) {

@@ -3,7 +3,7 @@ package com.pcverse.mapper;
 import com.pcverse.dto.request.CreateProductRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.response.AdminProductResponse;
-import com.pcverse.dto.response.ProductAttributesResponse;
+import com.pcverse.dto.response.AdminProductAttributesResponse;
 import com.pcverse.entity.Product;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -68,8 +68,8 @@ public interface ProductMapper {
     @Mapping(target = "brandName", source = "brand.name")
     @Mapping(target = "inStock", expression = "java(product.isInStock())")
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
-    AdminProductResponse toResponse(Product product);
+    AdminProductResponse toAdminResponse(Product product);
 
-    ProductAttributesResponse toAttributesResponse(Product product);
+    AdminProductAttributesResponse toAdminAttributesResponse(Product product);
 
 }

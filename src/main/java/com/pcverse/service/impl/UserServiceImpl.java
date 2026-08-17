@@ -7,6 +7,7 @@ import com.pcverse.dto.request.SendRequiredActionsEmailRequest;
 import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateMyProfileRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
+import com.pcverse.dto.response.AdminUserResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
@@ -197,7 +198,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<UserDetailsResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
+    public PaginationResponse<AdminUserResponse> searchUsers(AdminUserSearchRequest searchRequest, Pageable pageable) {
         Specification<User> searchSpecification =
                 switch (searchRequest.searchType()) {
 
@@ -254,24 +255,24 @@ public class UserServiceImpl implements UserService {
                                 Function.identity()
                         ));
 
-        List<UserDetailsResponse> users = userPage.getContent()
+        List<AdminUserResponse> users = userPage.getContent()
                 .stream()
                 .map(user -> usersWithRolesById.getOrDefault(
                         user.getId(),
                         user
                 ))
-                .map(userMapper::toUserDetailResponse)
+                .map(userMapper::toAdminResponse)
                 .toList();
 
         return toPaginationResponse(userPage, users);
 
     }
 
-    private PaginationResponse<UserDetailsResponse> toPaginationResponse(
+    private PaginationResponse<AdminUserResponse> toPaginationResponse(
             Page<User> userPage,
-            List<UserDetailsResponse> users
+            List<AdminUserResponse> users
     ) {
-        return PaginationResponse.<UserDetailsResponse>builder()
+        return PaginationResponse.<AdminUserResponse>builder()
                 .currentPage(userPage.getNumber())
                 .size(userPage.getSize())
                 .totalPages(userPage.getTotalPages())
@@ -282,16 +283,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetailsResponse getUserById(String userId) {
+    public AdminUserResponse getUserById(String userId) {
         User user = userRepository.findDetailsById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
     @Transactional
-    public UserDetailsResponse updateUserStatus(String userId, UserStatus status) {
+    public AdminUserResponse updateUserStatus(String userId, UserStatus status) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -318,12 +319,12 @@ public class UserServiceImpl implements UserService {
             logoutAndRevokeTokens(keycloakId);
         }
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
     @Transactional
-    public UserDetailsResponse updateUser(String userId, UpdateAdminUserRequest request) {
+    public AdminUserResponse updateUser(String userId, UpdateAdminUserRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -374,7 +375,7 @@ public class UserServiceImpl implements UserService {
             ));
         }
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toAdminResponse(user);
     }
 
     @Override
@@ -424,7 +425,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDetailsResponse assignRole(String userId, String roleName) {
+    public AdminUserResponse assignRole(String userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -440,7 +441,7 @@ public class UserServiceImpl implements UserService {
         }
 
         keycloakAdminService.assignRealmRole(keycloakId, roleName);
-        return userMapper.toUserDetailResponse(userRepository.save(user));
+        return userMapper.toAdminResponse(userRepository.save(user));
     }
 
     @Override
@@ -477,7 +478,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDetailsResponse removeRole(String userId, String roleName) {
+    public AdminUserResponse removeRole(String userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -510,7 +511,7 @@ public class UserServiceImpl implements UserService {
         // sau đó thu hồi session và các access token đã được cấp trước đó.
         logoutAndRevokeTokens(keycloakId);
 
-        return userMapper.toUserDetailResponse(updatedUser);
+        return userMapper.toAdminResponse(updatedUser);
     }
 
     @Override

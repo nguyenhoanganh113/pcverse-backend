@@ -3,7 +3,7 @@ package com.pcverse.controller;
 import com.pcverse.dto.request.CreateCategoryAttributeRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.CategoryAttributeResponse;
+import com.pcverse.dto.response.AdminCategoryAttributeResponse;
 import com.pcverse.service.CategoryAttributeService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -17,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/admin/categories/{categoryId}/attributes")
 @RequiredArgsConstructor
+@PreAuthorize("denyAll()")
 public class AdminCategoryAttributeController {
 
     private final CategoryAttributeService categoryAttributeService;
@@ -24,15 +25,15 @@ public class AdminCategoryAttributeController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_CREATE')")
-    public ApiResponse<CategoryAttributeResponse> create(
+    public ApiResponse<AdminCategoryAttributeResponse> create(
             @PathVariable String categoryId,
             @Valid @RequestBody
             CreateCategoryAttributeRequest request
     ) {
-        CategoryAttributeResponse response = categoryAttributeService.create(categoryId, request);
+        AdminCategoryAttributeResponse response = categoryAttributeService.create(categoryId, request);
 
         return ApiResponse
-                .<CategoryAttributeResponse>builder()
+                .<AdminCategoryAttributeResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message(
                         "Category attribute created successfully"
@@ -43,12 +44,12 @@ public class AdminCategoryAttributeController {
 
     @GetMapping("/{categoryAttributeId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_VIEW')")
-    public ApiResponse<CategoryAttributeResponse> getById(
+    public ApiResponse<AdminCategoryAttributeResponse> getById(
             @PathVariable String categoryId,
             @PathVariable String categoryAttributeId
     ) {
         return ApiResponse
-                .<CategoryAttributeResponse>builder()
+                .<AdminCategoryAttributeResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category attribute retrieved successfully")
                 .data(categoryAttributeService.getById(categoryId, categoryAttributeId))
@@ -59,14 +60,14 @@ public class AdminCategoryAttributeController {
     @PreAuthorize(
             "hasAuthority('ROLE_CATEGORY_ATTRIBUTE_VIEW')"
     )
-    public ApiResponse<List<CategoryAttributeResponse>> getAllByCategoryId(
+    public ApiResponse<List<AdminCategoryAttributeResponse>> getAllByCategoryId(
             @PathVariable String categoryId
     ) {
-        List<CategoryAttributeResponse> response = categoryAttributeService
+        List<AdminCategoryAttributeResponse> response = categoryAttributeService
                 .getAllByCategoryId(categoryId);
 
         return ApiResponse
-                .<List<CategoryAttributeResponse>>builder()
+                .<List<AdminCategoryAttributeResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category attributes retrieved successfully")
                 .data(response)
@@ -75,12 +76,12 @@ public class AdminCategoryAttributeController {
 
     @PatchMapping("/{categoryAttributeId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_UPDATE')")
-    public ApiResponse<CategoryAttributeResponse> update(
+    public ApiResponse<AdminCategoryAttributeResponse> update(
             @PathVariable String categoryId,
             @PathVariable String categoryAttributeId,
             @Valid @RequestBody UpdateCategoryAttributeRequest request
     ) {
-        CategoryAttributeResponse response =
+        AdminCategoryAttributeResponse response =
                 categoryAttributeService.update(
                         categoryId,
                         categoryAttributeId,
@@ -88,7 +89,7 @@ public class AdminCategoryAttributeController {
                 );
 
         return ApiResponse
-                .<CategoryAttributeResponse>builder()
+                .<AdminCategoryAttributeResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category attribute updated successfully")
                 .data(response)

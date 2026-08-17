@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 @RestControllerAdvice
 @Slf4j
@@ -247,11 +248,17 @@ public class GlobalExceptionHandler {
     }
 
     private FieldErrorResponse buildHttpMessageNotReadableDetail(HttpMessageNotReadableException e) {
-        UnknownJsonFieldException unknownFieldException = findCause(e, UnknownJsonFieldException.class);
-        if (unknownFieldException != null) {
-            String fieldName = unknownFieldException.getFieldName();
-            return new FieldErrorResponse(fieldName,
-                    "Unknown field '" + fieldName + "'"
+        UnrecognizedPropertyException unrecognizedPropertyException = findCause(
+                e,
+                UnrecognizedPropertyException.class
+        );
+        if (unrecognizedPropertyException != null) {
+            String field = extractUnknownFieldName(
+                    unrecognizedPropertyException
+            );
+            return new FieldErrorResponse(
+                    field,
+                    "Unknown field '" + field + "'"
             );
         }
 
@@ -272,6 +279,24 @@ public class GlobalExceptionHandler {
         }
 
         return new FieldErrorResponse("requestBody", "Invalid request body or JSON format");
+    }
+
+    private String extractUnknownFieldName(
+            UnrecognizedPropertyException exception
+    ) {
+        String path = extractFieldName(exception);
+        String propertyName = exception.getPropertyName();
+
+        if ("requestBody".equals(path)) {
+            return propertyName;
+        }
+
+        if (path.equals(propertyName)
+                || path.endsWith("." + propertyName)) {
+            return path;
+        }
+
+        return path + "." + propertyName;
     }
 
     private <T extends Throwable> T findCause(Throwable throwable, Class<T> causeType) {

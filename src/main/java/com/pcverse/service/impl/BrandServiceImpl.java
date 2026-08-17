@@ -4,7 +4,7 @@ import com.pcverse.dto.request.AdminBrandSearchRequest;
 import com.pcverse.dto.request.CreateBrandRequest;
 import com.pcverse.dto.request.UpdateBrandRequest;
 import com.pcverse.dto.request.UpdateBrandStatusRequest;
-import com.pcverse.dto.response.BrandResponse;
+import com.pcverse.dto.response.AdminBrandResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.Brand;
 import com.pcverse.enums.ProductStatus;
@@ -22,7 +22,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +40,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional
-    public BrandResponse create(CreateBrandRequest request) {
+    public AdminBrandResponse create(CreateBrandRequest request) {
 
         String slug = SlugUtils.generateSlug(request.name());
 
@@ -63,19 +65,24 @@ public class BrandServiceImpl implements BrandService {
             }
             throw exception;
         }
-        return brandMapper.toResponse(brand);
+        return brandMapper.toAdminResponse(brand);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public BrandResponse getById(String id) {
-        return brandMapper.toResponse(findBrand(id));
+    public AdminBrandResponse getById(String id) {
+        return brandMapper.toAdminResponse(findBrand(id));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<BrandResponse> searchForAdmin(
+    public PaginationResponse<AdminBrandResponse> searchForAdmin(
             AdminBrandSearchRequest request,
+            @PageableDefault(
+                    size = 20,
+                    sort = {"createdAt", "id"},
+                    direction = Sort.Direction.DESC
+            )
             Pageable pageable
     ) {
         Specification<Brand> specification = Specification.allOf(
@@ -83,11 +90,11 @@ public class BrandServiceImpl implements BrandService {
                 BrandSpecification.hasActive(request.active())
         );
 
-        Page<BrandResponse> page = brandRepository
+        Page<AdminBrandResponse> page = brandRepository
                 .findAll(specification, pageable)
-                .map(brandMapper::toResponse);
+                .map(brandMapper::toAdminResponse);
 
-        return PaginationResponse.<BrandResponse>builder()
+        return PaginationResponse.<AdminBrandResponse>builder()
                 .currentPage(page.getNumber())
                 .size(page.getSize())
                 .totalPages(page.getTotalPages())
@@ -98,7 +105,7 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     @Transactional
-    public BrandResponse update(String id, UpdateBrandRequest request) {
+    public AdminBrandResponse update(String id, UpdateBrandRequest request) {
         if (!request.hasAnyField()) {
             throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
         }
@@ -120,18 +127,18 @@ public class BrandServiceImpl implements BrandService {
             throw exception;
         }
 
-        return brandMapper.toResponse(brand);
+        return brandMapper.toAdminResponse(brand);
     }
 
     @Override
     @Transactional
-    public BrandResponse updateStatus(String id, UpdateBrandStatusRequest request) {
+    public AdminBrandResponse updateStatus(String id, UpdateBrandStatusRequest request) {
         Brand brand = findBrand(id);
         validateVersion(brand, request.version());
 
         boolean requestedActive = request.active();
         if (brand.isActive() == requestedActive) {
-            return brandMapper.toResponse(brand);
+            return brandMapper.toAdminResponse(brand);
         }
 
         if (!requestedActive
@@ -152,7 +159,7 @@ public class BrandServiceImpl implements BrandService {
             );
         }
 
-        return brandMapper.toResponse(brand);
+        return brandMapper.toAdminResponse(brand);
     }
 
     @Override

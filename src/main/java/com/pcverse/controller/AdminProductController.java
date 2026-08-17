@@ -8,7 +8,7 @@ import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.AdminProductResponse;
-import com.pcverse.dto.response.ProductAttributesResponse;
+import com.pcverse.dto.response.AdminProductAttributesResponse;
 import com.pcverse.service.ProductService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -62,10 +62,10 @@ public class AdminProductController {
 
     @GetMapping("/{productId}/attributes")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
-    public ApiResponse<ProductAttributesResponse> getAttributes(
+    public ApiResponse<AdminProductAttributesResponse> getAttributes(
             @PathVariable String productId
     ) {
-        return ApiResponse.<ProductAttributesResponse>builder()
+        return ApiResponse.<AdminProductAttributesResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Product attributes retrieved successfully")
                 .data(productService.getAttributes(productId))
@@ -119,11 +119,11 @@ public class AdminProductController {
 
     @PutMapping("/{productId}/attributes")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
-    public ApiResponse<ProductAttributesResponse> updateAttributes(
+    public ApiResponse<AdminProductAttributesResponse> updateAttributes(
             @PathVariable String productId,
             @Valid @RequestBody UpdateProductAttributesRequest request
     ) {
-        return ApiResponse.<ProductAttributesResponse>builder()
+        return ApiResponse.<AdminProductAttributesResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Product attributes updated successfully")
                 .data(productService.updateAttributes(productId, request))

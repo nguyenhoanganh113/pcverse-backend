@@ -7,7 +7,7 @@ import com.pcverse.dto.request.UpdateProductAttributesRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.ProductAttributesResponse;
+import com.pcverse.dto.response.AdminProductAttributesResponse;
 import com.pcverse.dto.response.AdminProductResponse;
 import com.pcverse.entity.*;
 import com.pcverse.enums.ProductStatus;
@@ -83,7 +83,7 @@ public class ProductServiceImpl implements ProductService {
         product.setProductStatus(ProductStatus.INACTIVE);
 
         flushCreate(product);
-        return productMapper.toResponse(product);
+        return productMapper.toAdminResponse(product);
     }
 
     @Override
@@ -105,7 +105,7 @@ public class ProductServiceImpl implements ProductService {
 
         Page<AdminProductResponse> page = productRepository
                 .findAll(specification, pageable)
-                .map(productMapper::toResponse);
+                .map(productMapper::toAdminResponse);
 
         return PaginationResponse.<AdminProductResponse>builder()
                 .currentPage(page.getNumber())
@@ -119,15 +119,15 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public AdminProductResponse getById(String id) {
-        return productMapper.toResponse(findProduct(id));
+        return productMapper.toAdminResponse(findProduct(id));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ProductAttributesResponse getAttributes(String id) {
+    public AdminProductAttributesResponse getAttributes(String id) {
         Product product = findProductWithAttributeValues(id);
 
-        return productMapper.toAttributesResponse(product);
+        return productMapper.toAdminAttributesResponse(product);
     }
 
     @Override
@@ -159,7 +159,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         flushUpdate();
-        return productMapper.toResponse(product);
+        return productMapper.toAdminResponse(product);
     }
 
     @Override
@@ -172,7 +172,7 @@ public class ProductServiceImpl implements ProductService {
         validateVersion(product, request.version());
 
         if (product.getProductStatus() == request.productStatus()) {
-            return productMapper.toResponse(product);
+            return productMapper.toAdminResponse(product);
         }
 
         if (request.productStatus() == ProductStatus.ACTIVE) {
@@ -181,12 +181,12 @@ public class ProductServiceImpl implements ProductService {
 
         product.setProductStatus(request.productStatus());
         flushUpdate();
-        return productMapper.toResponse(product);
+        return productMapper.toAdminResponse(product);
     }
 
     @Override
     @Transactional
-    public ProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request) {
+    public AdminProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request) {
         Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
@@ -291,7 +291,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         flushAttributeUpdate(product, request.version());
-        return productMapper.toAttributesResponse(product);
+        return productMapper.toAdminAttributesResponse(product);
     }
 
     @Override

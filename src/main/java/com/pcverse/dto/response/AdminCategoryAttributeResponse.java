@@ -3,7 +3,7 @@ package com.pcverse.dto.response;
 import lombok.Builder;
 
 @Builder
-public record CategoryAttributeResponse(
+public record AdminCategoryAttributeResponse(
         String id,
         String categoryId,
         String categoryName,

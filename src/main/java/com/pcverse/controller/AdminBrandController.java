@@ -5,7 +5,7 @@ import com.pcverse.dto.request.CreateBrandRequest;
 import com.pcverse.dto.request.UpdateBrandRequest;
 import com.pcverse.dto.request.UpdateBrandStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.BrandResponse;
+import com.pcverse.dto.response.AdminBrandResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.BrandService;
 import jakarta.validation.Valid;
@@ -29,12 +29,12 @@ public class AdminBrandController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize(value = "hasAuthority('ROLE_BRAND_CREATE')")
-    public ApiResponse<BrandResponse> createBrand(
+    public ApiResponse<AdminBrandResponse> createBrand(
             @Valid @RequestBody CreateBrandRequest request) {
 
-        BrandResponse dataResponse = brandService.create(request);
+        AdminBrandResponse dataResponse = brandService.create(request);
 
-        return ApiResponse.<BrandResponse>builder()
+        return ApiResponse.<AdminBrandResponse>builder()
                         .code(HttpStatus.CREATED.value())
                         .message("Brand created successfully")
                         .data(dataResponse)
@@ -43,10 +43,10 @@ public class AdminBrandController {
 
     @GetMapping("/{brandId}")
     @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
-    public ApiResponse<BrandResponse> getById(
+    public ApiResponse<AdminBrandResponse> getById(
             @PathVariable String brandId
     ) {
-        return ApiResponse.<BrandResponse>builder()
+        return ApiResponse.<AdminBrandResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Brand retrieved successfully")
                 .data(brandService.getById(brandId))
@@ -55,7 +55,7 @@ public class AdminBrandController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
-    public ApiResponse<PaginationResponse<BrandResponse>> search(
+    public ApiResponse<PaginationResponse<AdminBrandResponse>> search(
             @Valid @ModelAttribute AdminBrandSearchRequest request,
             @PageableDefault(
                     size = 20,
@@ -64,7 +64,7 @@ public class AdminBrandController {
             )
             Pageable pageable
     ) {
-        return ApiResponse.<PaginationResponse<BrandResponse>>builder()
+        return ApiResponse.<PaginationResponse<AdminBrandResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Brands retrieved successfully")
                 .data(brandService.searchForAdmin(request, pageable))
@@ -73,11 +73,11 @@ public class AdminBrandController {
 
     @PatchMapping("/{brandId}")
     @PreAuthorize("hasAuthority('ROLE_BRAND_UPDATE')")
-    public ApiResponse<BrandResponse> update(
+    public ApiResponse<AdminBrandResponse> update(
             @PathVariable String brandId,
             @Valid @RequestBody UpdateBrandRequest request
     ) {
-        return ApiResponse.<BrandResponse>builder()
+        return ApiResponse.<AdminBrandResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Brand updated successfully")
                 .data(brandService.update(brandId, request))
@@ -86,11 +86,11 @@ public class AdminBrandController {
 
     @PatchMapping("/{brandId}/status")
     @PreAuthorize("hasAuthority('ROLE_BRAND_UPDATE')")
-    public ApiResponse<BrandResponse> updateStatus(
+    public ApiResponse<AdminBrandResponse> updateStatus(
             @PathVariable String brandId,
             @Valid @RequestBody UpdateBrandStatusRequest request
     ) {
-        return ApiResponse.<BrandResponse>builder()
+        return ApiResponse.<AdminBrandResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Brand status updated successfully")
                 .data(brandService.updateStatus(brandId, request))

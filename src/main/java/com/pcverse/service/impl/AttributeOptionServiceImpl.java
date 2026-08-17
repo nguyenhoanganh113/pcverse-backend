@@ -4,7 +4,7 @@ import com.pcverse.dto.request.AttributeOptionCreateRequest;
 import com.pcverse.dto.request.AttributeOptionSearchRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionStatusRequest;
-import com.pcverse.dto.response.AttributeOptionResponse;
+import com.pcverse.dto.response.AdminAttributeOptionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.AttributeDefinition;
 import com.pcverse.entity.AttributeOption;
@@ -42,8 +42,8 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
     @Override
     @Transactional
-    public AttributeOptionResponse create(String attributeDefinitionId,
-                                          AttributeOptionCreateRequest request) {
+    public AdminAttributeOptionResponse create(String attributeDefinitionId,
+                                               AttributeOptionCreateRequest request) {
 
         AttributeDefinition attributeDefinition = attributeDefinitionRepository
                 .findById(attributeDefinitionId)
@@ -72,7 +72,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
         try {
             AttributeOption saved = attributeOptionRepository.saveAndFlush(attributeOption);
 
-            return attributeOptionMapper.toResponse(saved);
+            return attributeOptionMapper.toAdminResponse(saved);
         } catch (DataIntegrityViolationException exception) {
             /*
              * Phòng trường hợp hai request đồng thời cùng tạo một code.
@@ -93,7 +93,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public AttributeOptionResponse getById(String attributeDefinitionId, String attributeOptionId) {
+    public AdminAttributeOptionResponse getById(String attributeDefinitionId, String attributeOptionId) {
         AttributeOption attributeOption = attributeOptionRepository
                 .findByIdAndAttributeDefinitionId(attributeOptionId, attributeDefinitionId)
                 .orElseGet(() -> {
@@ -103,12 +103,12 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
                     throw new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND);
                 });
 
-        return attributeOptionMapper.toResponse(attributeOption);
+        return attributeOptionMapper.toAdminResponse(attributeOption);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<AttributeOptionResponse> searchForAdmin(String attributeDefinitionId, AttributeOptionSearchRequest request, Pageable pageable) {
+    public PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(String attributeDefinitionId, AttributeOptionSearchRequest request, Pageable pageable) {
 
         if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
             throw new AppException(
@@ -123,12 +123,12 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
                         AttributeOptionSpecification.hasActive(request.active())
                 );
 
-        Page<AttributeOptionResponse> page =
+        Page<AdminAttributeOptionResponse> page =
                 attributeOptionRepository.findAll(specification, pageable)
-                        .map(attributeOptionMapper::toResponse);
+                        .map(attributeOptionMapper::toAdminResponse);
 
         return PaginationResponse
-                .<AttributeOptionResponse>builder()
+                .<AdminAttributeOptionResponse>builder()
                 .currentPage(page.getNumber())
                 .size(page.getSize())
                 .totalPages(page.getTotalPages())
@@ -180,7 +180,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
     @Override
     @Transactional
-    public AttributeOptionResponse update(String attributeDefinitionId, String attributeOptionId, UpdateAttributeOptionRequest request) {
+    public AdminAttributeOptionResponse update(String attributeDefinitionId, String attributeOptionId, UpdateAttributeOptionRequest request) {
 
         if (!request.hasAnyField()) {
             throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
@@ -215,7 +215,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
         try {
             attributeOptionRepository.flush();
-            return attributeOptionMapper.toResponse(attributeOption);
+            return attributeOptionMapper.toAdminResponse(attributeOption);
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(ErrorCode.ATTRIBUTE_OPTION_CONCURRENT_UPDATE);
         } catch (DataIntegrityViolationException exception) {
@@ -233,7 +233,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
     }
     @Override
     @Transactional
-    public AttributeOptionResponse updateStatus(
+    public AdminAttributeOptionResponse updateStatus(
             String attributeDefinitionId,
             String attributeOptionId,
             UpdateAttributeOptionStatusRequest request) {
@@ -256,7 +256,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
         boolean requestedActive = request.active();
 
         if (attributeOption.isActive() == requestedActive) {
-            return attributeOptionMapper.toResponse(attributeOption);
+            return attributeOptionMapper.toAdminResponse(attributeOption);
         }
 
         if (!requestedActive) {
@@ -278,7 +278,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
         try {
             attributeOptionRepository.flush();
-            return attributeOptionMapper.toResponse(attributeOption);
+            return attributeOptionMapper.toAdminResponse(attributeOption);
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(
                     ErrorCode.ATTRIBUTE_OPTION_CONCURRENT_UPDATE

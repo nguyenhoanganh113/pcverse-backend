@@ -5,7 +5,7 @@ import com.pcverse.dto.request.AttributeOptionSearchRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.AttributeOptionResponse;
+import com.pcverse.dto.response.AdminAttributeOptionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.AttributeOptionService;
 import jakarta.validation.Valid;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/admin/attributes/{attributeDefinitionId}/options")
 @RequiredArgsConstructor
+@PreAuthorize("denyAll()")
 public class AdminAttributeOptionController {
 
     private final AttributeOptionService attributeOptionService;
@@ -28,14 +29,14 @@ public class AdminAttributeOptionController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_CREATE')")
-    public ApiResponse<AttributeOptionResponse> create(
+    public ApiResponse<AdminAttributeOptionResponse> create(
             @PathVariable String attributeDefinitionId,
             @Valid @RequestBody AttributeOptionCreateRequest request
     ) {
-        AttributeOptionResponse response =
+        AdminAttributeOptionResponse response =
                 attributeOptionService.create(attributeDefinitionId, request);
 
-        return ApiResponse.<AttributeOptionResponse>builder()
+        return ApiResponse.<AdminAttributeOptionResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Attribute option created successfully")
                 .data(response)
@@ -44,13 +45,13 @@ public class AdminAttributeOptionController {
 
     @GetMapping("/{attributeOptionId}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_VIEW')")
-    public ApiResponse<AttributeOptionResponse> getById(
+    public ApiResponse<AdminAttributeOptionResponse> getById(
             @PathVariable String attributeDefinitionId,
             @PathVariable String attributeOptionId
     ) {
-        AttributeOptionResponse response = attributeOptionService.getById(attributeDefinitionId, attributeOptionId);
+        AdminAttributeOptionResponse response = attributeOptionService.getById(attributeDefinitionId, attributeOptionId);
 
-        return ApiResponse.<AttributeOptionResponse>builder()
+        return ApiResponse.<AdminAttributeOptionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute option retrieved successfully")
                 .data(response)
@@ -59,7 +60,7 @@ public class AdminAttributeOptionController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_VIEW')")
-    public ApiResponse<PaginationResponse<AttributeOptionResponse>> searchForAdmin(
+    public ApiResponse<PaginationResponse<AdminAttributeOptionResponse>> searchForAdmin(
             @PathVariable String attributeDefinitionId,
             @Valid @ModelAttribute AttributeOptionSearchRequest request,
             @PageableDefault(
@@ -70,7 +71,7 @@ public class AdminAttributeOptionController {
             Pageable pageable
     ) {
 
-        return ApiResponse.<PaginationResponse<AttributeOptionResponse>>builder()
+        return ApiResponse.<PaginationResponse<AdminAttributeOptionResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute options retrieved successfully")
                 .data(
@@ -100,20 +101,20 @@ public class AdminAttributeOptionController {
 
     @PatchMapping("/{attributeOptionId}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_UPDATE')")
-    public ApiResponse<AttributeOptionResponse> update(
+    public ApiResponse<AdminAttributeOptionResponse> update(
             @PathVariable String attributeDefinitionId,
             @PathVariable String attributeOptionId,
             @Valid @RequestBody UpdateAttributeOptionRequest request
     ) {
 
-        AttributeOptionResponse response =
+        AdminAttributeOptionResponse response =
                 attributeOptionService.update(
                         attributeDefinitionId,
                         attributeOptionId,
                         request
                 );
 
-        return ApiResponse.<AttributeOptionResponse>builder()
+        return ApiResponse.<AdminAttributeOptionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute option updated successfully")
                 .data(response)
@@ -123,20 +124,20 @@ public class AdminAttributeOptionController {
 
     @PatchMapping("/{attributeOptionId}/status")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_UPDATE')")
-    public ApiResponse<AttributeOptionResponse> updateStatus(
+    public ApiResponse<AdminAttributeOptionResponse> updateStatus(
             @PathVariable String attributeDefinitionId,
             @PathVariable String attributeOptionId,
             @Valid @RequestBody UpdateAttributeOptionStatusRequest request
     ) {
 
-        AttributeOptionResponse response =
+        AdminAttributeOptionResponse response =
                 attributeOptionService.updateStatus(
                         attributeDefinitionId,
                         attributeOptionId,
                         request
                 );
 
-        return ApiResponse.<AttributeOptionResponse>builder()
+        return ApiResponse.<AdminAttributeOptionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute option status updated successfully")
                 .data(response)

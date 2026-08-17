@@ -5,7 +5,7 @@ import lombok.Builder;
 import java.time.Instant;
 
 @Builder
-public record CategoryResponse(
+public record AdminCategoryResponse(
         String id,
         String name,
         String slug,

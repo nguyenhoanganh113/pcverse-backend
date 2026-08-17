@@ -3,24 +3,24 @@ package com.pcverse.service;
 import com.pcverse.dto.request.AttributeDefinitionSearchRequest;
 import com.pcverse.dto.request.CreateAttributeDefinitionRequest;
 import com.pcverse.dto.request.UpdateAttributeDefinitionRequest;
-import com.pcverse.dto.response.AttributeDefinitionResponse;
+import com.pcverse.dto.response.AdminAttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.request.UpdateAttributeDefinitionStatusRequest;
 import org.springframework.data.domain.Pageable;
 
 public interface AttributeDefinitionService {
 
-    AttributeDefinitionResponse create(CreateAttributeDefinitionRequest request);
+    AdminAttributeDefinitionResponse create(CreateAttributeDefinitionRequest request);
 
-    PaginationResponse<AttributeDefinitionResponse> searchForAdmin(AttributeDefinitionSearchRequest request, Pageable pageable);
+    PaginationResponse<AdminAttributeDefinitionResponse> searchForAdmin(AttributeDefinitionSearchRequest request, Pageable pageable);
 
-    AttributeDefinitionResponse getById(String id);
+    AdminAttributeDefinitionResponse getById(String id);
 
-    AttributeDefinitionResponse update(String id, UpdateAttributeDefinitionRequest request);
+    AdminAttributeDefinitionResponse update(String id, UpdateAttributeDefinitionRequest request);
 
     void delete(String id, Long version);
 
-    AttributeDefinitionResponse updateStatus(
+    AdminAttributeDefinitionResponse updateStatus(
             String attributeDefinitionId,
             UpdateAttributeDefinitionStatusRequest request
     );

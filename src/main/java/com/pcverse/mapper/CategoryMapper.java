@@ -2,7 +2,7 @@ package com.pcverse.mapper;
 
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
-import com.pcverse.dto.response.CategoryResponse;
+import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.entity.Category;
 import org.mapstruct.*;
 
@@ -13,7 +13,7 @@ import org.mapstruct.*;
 public interface CategoryMapper {
 
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
-    CategoryResponse toResponse(Category category);
+    AdminCategoryResponse toAdminResponse(Category category);
 
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "categoryAttributes", ignore = true)

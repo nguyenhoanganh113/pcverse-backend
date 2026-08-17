@@ -2,7 +2,7 @@ package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.CreateCategoryAttributeRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
-import com.pcverse.dto.response.CategoryAttributeResponse;
+import com.pcverse.dto.response.AdminCategoryAttributeResponse;
 import com.pcverse.entity.AttributeDefinition;
 import com.pcverse.entity.Category;
 import com.pcverse.entity.CategoryAttribute;
@@ -36,7 +36,7 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
 
     @Override
     @Transactional
-    public CategoryAttributeResponse create(String categoryId, CreateCategoryAttributeRequest request) {
+    public AdminCategoryAttributeResponse create(String categoryId, CreateCategoryAttributeRequest request) {
 
         Category category = categoryRepository
                 .findById(categoryId)
@@ -86,37 +86,37 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
             throw exception;
         }
 
-        return categoryAttributeMapper.toResponse(saved);
+        return categoryAttributeMapper.toAdminResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CategoryAttributeResponse getById(String categoryId, String categoryAttributeId) {
+    public AdminCategoryAttributeResponse getById(String categoryId, String categoryAttributeId) {
         CategoryAttribute categoryAttribute =
                 findCategoryAttribute(
                         categoryId,
                         categoryAttributeId
                 );
 
-        return categoryAttributeMapper.toResponse(categoryAttribute);
+        return categoryAttributeMapper.toAdminResponse(categoryAttribute);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<CategoryAttributeResponse> getAllByCategoryId(String categoryId) {
+    public List<AdminCategoryAttributeResponse> getAllByCategoryId(String categoryId) {
         if (!categoryRepository.existsById(categoryId)) {
             throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
         }
         return categoryAttributeRepository
                 .findAllByCategory_Id(categoryId)
                 .stream()
-                .map(categoryAttributeMapper::toResponse)
+                .map(categoryAttributeMapper::toAdminResponse)
                 .toList();
     }
 
     @Override
     @Transactional
-    public CategoryAttributeResponse update(
+    public AdminCategoryAttributeResponse update(
             String categoryId,
             String categoryAttributeId,
             UpdateCategoryAttributeRequest request
@@ -166,7 +166,7 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
             );
         }
 
-        return categoryAttributeMapper.toResponse(
+        return categoryAttributeMapper.toAdminResponse(
                 categoryAttribute
         );
     }

@@ -1,7 +1,7 @@
 package com.pcverse.mapper;
 
 import com.pcverse.dto.request.UpdateAttributeOptionRequest;
-import com.pcverse.dto.response.AttributeOptionResponse;
+import com.pcverse.dto.response.AdminAttributeOptionResponse;
 import com.pcverse.entity.AttributeOption;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -16,7 +16,7 @@ public interface AttributeOptionMapper {
             target = "attributeDefinitionId",
             source = "attributeDefinition.id"
     )
-    AttributeOptionResponse toResponse(AttributeOption attributeOption);
+    AdminAttributeOptionResponse toAdminResponse(AttributeOption attributeOption);
 
     @BeanMapping(
             ignoreByDefault = true,

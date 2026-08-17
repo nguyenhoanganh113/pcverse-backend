@@ -3,7 +3,7 @@ package com.pcverse.service.impl;
 import com.pcverse.dto.request.AttributeDefinitionSearchRequest;
 import com.pcverse.dto.request.CreateAttributeDefinitionRequest;
 import com.pcverse.dto.request.UpdateAttributeDefinitionRequest;
-import com.pcverse.dto.response.AttributeDefinitionResponse;
+import com.pcverse.dto.response.AdminAttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.request.UpdateAttributeDefinitionStatusRequest;
 import com.pcverse.entity.AttributeDefinition;
@@ -41,7 +41,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
 
     @Override
     @Transactional
-    public AttributeDefinitionResponse create(CreateAttributeDefinitionRequest request) {
+    public AdminAttributeDefinitionResponse create(CreateAttributeDefinitionRequest request) {
 
         if (attributeDefinitionRepository.existsByCode(request.code())) {
             throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_ALREADY_EXISTS);
@@ -71,12 +71,12 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
                 attributeDefinition.getId()
         );
 
-        return mapper.toResponse(attributeDefinition);
+        return mapper.toAdminResponse(attributeDefinition);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<AttributeDefinitionResponse> searchForAdmin(AttributeDefinitionSearchRequest request, Pageable pageable) {
+    public PaginationResponse<AdminAttributeDefinitionResponse> searchForAdmin(AttributeDefinitionSearchRequest request, Pageable pageable) {
 
         Specification<AttributeDefinition> specification =
                 Specification.allOf(
@@ -88,12 +88,12 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
                         )
                 );
 
-        Page<AttributeDefinitionResponse> page =
+        Page<AdminAttributeDefinitionResponse> page =
                 attributeDefinitionRepository.findAll(specification, pageable)
-                        .map(mapper::toResponse);
+                        .map(mapper::toAdminResponse);
 
         return PaginationResponse
-                .<AttributeDefinitionResponse>builder()
+                .<AdminAttributeDefinitionResponse>builder()
                 .currentPage(page.getNumber())
                 .size(page.getSize())
                 .totalPages(page.getTotalPages())
@@ -105,13 +105,13 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
 
     @Override
     @Transactional(readOnly = true)
-    public AttributeDefinitionResponse getById(String id) {
-        return mapper.toResponse(findAttributeDefinition(id));
+    public AdminAttributeDefinitionResponse getById(String id) {
+        return mapper.toAdminResponse(findAttributeDefinition(id));
     }
 
     @Override
     @Transactional
-    public AttributeDefinitionResponse update(String id, UpdateAttributeDefinitionRequest request) {
+    public AdminAttributeDefinitionResponse update(String id, UpdateAttributeDefinitionRequest request) {
 
         if (!request.hasAnyField()) {
             throw new AppException(
@@ -126,7 +126,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
 
         flushUpdate();
 
-        return mapper.toResponse(attributeDefinition);
+        return mapper.toAdminResponse(attributeDefinition);
     }
 
     @Override
@@ -174,7 +174,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
 
     @Override
     @Transactional
-    public AttributeDefinitionResponse updateStatus(
+    public AdminAttributeDefinitionResponse updateStatus(
             String attributeDefinitionId,
             UpdateAttributeDefinitionStatusRequest request
     ) {
@@ -193,7 +193,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
                     attributeDefinition.isActive()
             );
 
-            return mapper.toResponse(attributeDefinition);
+            return mapper.toAdminResponse(attributeDefinition);
         }
 
         // Nếu đang inactive AttributeDefinition này thì phải kiểm tra xem trong ProductAttributeValue
@@ -228,7 +228,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
                 attributeDefinition.isActive()
         );
 
-        return mapper.toResponse(attributeDefinition);
+        return mapper.toAdminResponse(attributeDefinition);
     }
 
     private void flushUpdate() {

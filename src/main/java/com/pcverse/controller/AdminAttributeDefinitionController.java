@@ -5,13 +5,15 @@ import com.pcverse.dto.request.CreateAttributeDefinitionRequest;
 import com.pcverse.dto.request.UpdateAttributeDefinitionRequest;
 import com.pcverse.dto.request.UpdateAttributeDefinitionStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.AttributeDefinitionResponse;
+import com.pcverse.dto.response.AdminAttributeDefinitionResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.AttributeDefinitionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -27,9 +29,9 @@ public class AdminAttributeDefinitionController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_CREATE')")
-    public ApiResponse<AttributeDefinitionResponse> create(@Valid @RequestBody CreateAttributeDefinitionRequest request) {
+    public ApiResponse<AdminAttributeDefinitionResponse> create(@Valid @RequestBody CreateAttributeDefinitionRequest request) {
         var data = attributeDefinitionService.create(request);
-        return ApiResponse.<AttributeDefinitionResponse>builder()
+        return ApiResponse.<AdminAttributeDefinitionResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Attribute definition created successfully")
                 .data(data)
@@ -38,13 +40,18 @@ public class AdminAttributeDefinitionController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_VIEW')")
-    public ApiResponse<PaginationResponse<AttributeDefinitionResponse>> search(
+    public ApiResponse<PaginationResponse<AdminAttributeDefinitionResponse>> search(
             @Valid @ModelAttribute
             AttributeDefinitionSearchRequest request,
+            @PageableDefault(
+                    size = 20,
+                    sort = {"createdAt", "id"},
+                    direction = Sort.Direction.DESC
+            )
             Pageable pageable
     ) {
         return ApiResponse
-                .<PaginationResponse<AttributeDefinitionResponse>>builder()
+                .<PaginationResponse<AdminAttributeDefinitionResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute definitions retrieved successfully")
                 .data(attributeDefinitionService.searchForAdmin(request, pageable))
@@ -53,9 +60,9 @@ public class AdminAttributeDefinitionController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_READ')")
-    public ApiResponse<AttributeDefinitionResponse> get(@PathVariable String id) {
+    public ApiResponse<AdminAttributeDefinitionResponse> get(@PathVariable String id) {
         return ApiResponse
-                .<AttributeDefinitionResponse>builder()
+                .<AdminAttributeDefinitionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute definition retrieved successfully")
                 .data(attributeDefinitionService.getById(id))
@@ -64,12 +71,12 @@ public class AdminAttributeDefinitionController {
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_UPDATE')")
-    public ApiResponse<AttributeDefinitionResponse> update(
+    public ApiResponse<AdminAttributeDefinitionResponse> update(
             @PathVariable String id,
             @Valid @RequestBody UpdateAttributeDefinitionRequest request
     ) {
         var data = attributeDefinitionService.update(id, request);
-        return ApiResponse.<AttributeDefinitionResponse>builder()
+        return ApiResponse.<AdminAttributeDefinitionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute definition updated successfully")
                 .data(data)
@@ -78,12 +85,12 @@ public class AdminAttributeDefinitionController {
 
     @PatchMapping("/{attributeDefinitionId}/status")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_UPDATE')")
-    public ApiResponse<AttributeDefinitionResponse> updateStatus(
+    public ApiResponse<AdminAttributeDefinitionResponse> updateStatus(
             @PathVariable String attributeDefinitionId,
             @Valid @RequestBody UpdateAttributeDefinitionStatusRequest request
     ) {
         var data = attributeDefinitionService.updateStatus(attributeDefinitionId, request);
-        return ApiResponse.<AttributeDefinitionResponse>builder()
+        return ApiResponse.<AdminAttributeDefinitionResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute definition status updated successfully")
                 .data(data)

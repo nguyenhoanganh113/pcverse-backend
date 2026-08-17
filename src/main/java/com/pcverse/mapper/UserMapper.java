@@ -1,6 +1,7 @@
 package com.pcverse.mapper;
 
 import com.pcverse.dto.request.CreateUserRequest;
+import com.pcverse.dto.response.AdminUserResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.entity.User;
@@ -39,6 +40,13 @@ public interface UserMapper {
             qualifiedByName = "toRoleNames"
     )
     UserDetailsResponse toUserDetailResponse(User user);
+
+    @Mapping(
+            target = "roles",
+            source = "userHasRoles",
+            qualifiedByName = "toRoleNames"
+    )
+    AdminUserResponse toAdminResponse(User user);
 
     @Named("toGender")
     default Gender toGender(String gender) {

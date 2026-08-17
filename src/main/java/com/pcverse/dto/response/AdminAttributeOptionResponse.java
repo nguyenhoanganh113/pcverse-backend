@@ -3,7 +3,7 @@ package com.pcverse.dto.response;
 import lombok.Builder;
 
 @Builder
-public record AttributeOptionResponse(
+public record AdminAttributeOptionResponse(
 
         String id,
         String attributeDefinitionId,

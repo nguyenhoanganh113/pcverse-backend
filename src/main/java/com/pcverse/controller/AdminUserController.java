@@ -9,9 +9,9 @@ import com.pcverse.dto.request.UpdateAdminUserRequest;
 import com.pcverse.dto.request.UpdateUserRequiredActionsRequest;
 import com.pcverse.dto.request.UpdateUserStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
+import com.pcverse.dto.response.AdminUserResponse;
 import com.pcverse.dto.response.CreateUserResponse;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.UserDetailsResponse;
 import com.pcverse.dto.response.UserSessionResponse;
 import com.pcverse.service.UserService;
 import jakarta.validation.Valid;
@@ -34,7 +34,7 @@ public class AdminUserController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_USER_VIEW')")
-    ApiResponse<PaginationResponse<UserDetailsResponse>> searchUser(
+    ApiResponse<PaginationResponse<AdminUserResponse>> searchUser(
             @Valid @ModelAttribute AdminUserSearchRequest searchRequest,
             @PageableDefault(
                     size = 20,
@@ -43,9 +43,9 @@ public class AdminUserController {
             )
             Pageable pageable
     ) {
-        PaginationResponse<UserDetailsResponse> users = userService.searchUsers(searchRequest, pageable);
+        PaginationResponse<AdminUserResponse> users = userService.searchUsers(searchRequest, pageable);
 
-        return ApiResponse.<PaginationResponse<UserDetailsResponse>>builder()
+        return ApiResponse.<PaginationResponse<AdminUserResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Users retrieved successfully")
                 .data(users)
@@ -54,10 +54,10 @@ public class AdminUserController {
 
     @GetMapping("/{userId}")
     @PreAuthorize("hasAuthority('ROLE_USER_READ')")
-    ApiResponse<UserDetailsResponse> getUserById(@PathVariable String userId) {
-        UserDetailsResponse data = userService.getUserById(userId);
+    ApiResponse<AdminUserResponse> getUserById(@PathVariable String userId) {
+        AdminUserResponse data = userService.getUserById(userId);
 
-        return ApiResponse.<UserDetailsResponse>builder()
+        return ApiResponse.<AdminUserResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("User retrieved successfully")
                 .data(data)
@@ -79,13 +79,13 @@ public class AdminUserController {
 
     @PostMapping("/{userId}/roles")
     @PreAuthorize("hasAuthority('ROLE_USER_ROLE_MANAGE')")
-    ApiResponse<UserDetailsResponse> assignRole(
+    ApiResponse<AdminUserResponse> assignRole(
             @PathVariable String userId,
             @RequestBody @Valid AssignUserRoleRequest request
     ) {
-        UserDetailsResponse data = userService.assignRole(userId, request.roleName());
+        AdminUserResponse data = userService.assignRole(userId, request.roleName());
 
-        return ApiResponse.<UserDetailsResponse>builder()
+        return ApiResponse.<AdminUserResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Role assigned successfully")
                 .data(data)
@@ -94,13 +94,13 @@ public class AdminUserController {
 
     @PutMapping("/{userId}")
     @PreAuthorize("hasAuthority('ROLE_USER_UPDATE')")
-    ApiResponse<UserDetailsResponse> updateUser(
+    ApiResponse<AdminUserResponse> updateUser(
             @PathVariable String userId,
             @RequestBody @Valid UpdateAdminUserRequest request
     ) {
-        UserDetailsResponse data = userService.updateUser(userId, request);
+        AdminUserResponse data = userService.updateUser(userId, request);
 
-        return ApiResponse.<UserDetailsResponse>builder()
+        return ApiResponse.<AdminUserResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("User updated successfully")
                 .data(data)
@@ -109,13 +109,13 @@ public class AdminUserController {
 
     @PatchMapping("/{userId}/status")
     @PreAuthorize("hasAuthority('ROLE_USER_STATUS_MANAGE')")
-    ApiResponse<UserDetailsResponse> updateUserStatus(
+    ApiResponse<AdminUserResponse> updateUserStatus(
             @PathVariable String userId,
             @RequestBody @Valid UpdateUserStatusRequest request
     ) {
-        UserDetailsResponse data = userService.updateUserStatus(userId, request.status());
+        AdminUserResponse data = userService.updateUserStatus(userId, request.status());
 
-        return ApiResponse.<UserDetailsResponse>builder()
+        return ApiResponse.<AdminUserResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("User status updated successfully")
                 .data(data)
@@ -149,11 +149,11 @@ public class AdminUserController {
 
     @DeleteMapping("/{userId}/roles/{roleName}")
     @PreAuthorize("hasAuthority('ROLE_USER_ROLE_MANAGE')")
-    ApiResponse<UserDetailsResponse> removeRole(@PathVariable String userId,
+    ApiResponse<AdminUserResponse> removeRole(@PathVariable String userId,
                                                 @PathVariable String roleName) {
-        UserDetailsResponse data = userService.removeRole(userId, roleName);
+        AdminUserResponse data = userService.removeRole(userId, roleName);
 
-        return ApiResponse.<UserDetailsResponse>builder()
+        return ApiResponse.<AdminUserResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Role removed successfully")
                 .data(data)

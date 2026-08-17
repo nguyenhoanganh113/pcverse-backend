@@ -5,7 +5,7 @@ import lombok.Builder;
 import java.time.Instant;
 
 @Builder
-public record AttributeDefinitionResponse(
+public record AdminAttributeDefinitionResponse(
 
         String id,
 

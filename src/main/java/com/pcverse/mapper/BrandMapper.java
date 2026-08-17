@@ -2,7 +2,7 @@ package com.pcverse.mapper;
 
 import com.pcverse.dto.request.CreateBrandRequest;
 import com.pcverse.dto.request.UpdateBrandRequest;
-import com.pcverse.dto.response.BrandResponse;
+import com.pcverse.dto.response.AdminBrandResponse;
 import com.pcverse.entity.Brand;
 import org.mapstruct.*;
 
@@ -21,7 +21,7 @@ public interface BrandMapper {
     Brand toEntity(CreateBrandRequest request);
 
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
-    BrandResponse toResponse(Brand brand);
+    AdminBrandResponse toAdminResponse(Brand brand);
 
     @BeanMapping(
             ignoreByDefault = true,

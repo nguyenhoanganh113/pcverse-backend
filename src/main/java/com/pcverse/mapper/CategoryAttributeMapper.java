@@ -1,6 +1,6 @@
 package com.pcverse.mapper;
 
-import com.pcverse.dto.response.CategoryAttributeResponse;
+import com.pcverse.dto.response.AdminCategoryAttributeResponse;
 import com.pcverse.entity.CategoryAttribute;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -32,6 +32,6 @@ public interface CategoryAttributeMapper {
             target = "attributeDefinitionName",
             source = "attributeDefinition.name"
     )
-    CategoryAttributeResponse toResponse(CategoryAttribute categoryAttribute);
+    AdminCategoryAttributeResponse toAdminResponse(CategoryAttribute categoryAttribute);
 
 }

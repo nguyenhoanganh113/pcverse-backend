@@ -5,7 +5,7 @@ import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
-import com.pcverse.dto.response.CategoryResponse;
+import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.CategoryService;
 import jakarta.validation.Valid;
@@ -39,10 +39,10 @@ public class AdminCategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_CREATE')")
-    public ApiResponse<CategoryResponse> create(
+    public ApiResponse<AdminCategoryResponse> create(
             @Valid @RequestBody CreateCategoryRequest request
     ) {
-        return ApiResponse.<CategoryResponse>builder()
+        return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Category created successfully")
                 .data(categoryService.create(request))
@@ -51,10 +51,10 @@ public class AdminCategoryController {
 
     @GetMapping("/{categoryId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_VIEW')")
-    public ApiResponse<CategoryResponse> getById(
+    public ApiResponse<AdminCategoryResponse> getById(
             @PathVariable String categoryId
     ) {
-        return ApiResponse.<CategoryResponse>builder()
+        return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category retrieved successfully")
                 .data(categoryService.getById(categoryId))
@@ -63,7 +63,7 @@ public class AdminCategoryController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_VIEW')")
-    public ApiResponse<PaginationResponse<CategoryResponse>> search(
+    public ApiResponse<PaginationResponse<AdminCategoryResponse>> search(
             @Valid @ModelAttribute CategorySearchRequest request,
             @PageableDefault(
                     size = 20,
@@ -73,7 +73,7 @@ public class AdminCategoryController {
             Pageable pageable
     ) {
         return ApiResponse
-                .<PaginationResponse<CategoryResponse>>builder()
+                .<PaginationResponse<AdminCategoryResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Categories retrieved successfully")
                 .data(categoryService.searchForAdmin(request, pageable))
@@ -82,11 +82,11 @@ public class AdminCategoryController {
 
     @PatchMapping("/{categoryId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_UPDATE')")
-    public ApiResponse<CategoryResponse> update(
+    public ApiResponse<AdminCategoryResponse> update(
             @PathVariable String categoryId,
             @Valid @RequestBody UpdateCategoryRequest request
     ) {
-        return ApiResponse.<CategoryResponse>builder()
+        return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category updated successfully")
                 .data(categoryService.update(categoryId, request))
@@ -95,11 +95,11 @@ public class AdminCategoryController {
 
     @PatchMapping("/{categoryId}/status")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_UPDATE')")
-    public ApiResponse<CategoryResponse> updateStatus(
+    public ApiResponse<AdminCategoryResponse> updateStatus(
             @PathVariable String categoryId,
             @Valid @RequestBody UpdateCategoryStatusRequest request
     ) {
-        return ApiResponse.<CategoryResponse>builder()
+        return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category status updated successfully")
                 .data(categoryService.updateStatus(categoryId, request))

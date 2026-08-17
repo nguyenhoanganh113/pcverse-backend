@@ -4,24 +4,24 @@ import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryStatusRequest;
-import com.pcverse.dto.response.CategoryResponse;
+import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import org.springframework.data.domain.Pageable;
 
 public interface CategoryService {
 
-    CategoryResponse create(CreateCategoryRequest request);
+    AdminCategoryResponse create(CreateCategoryRequest request);
 
-    PaginationResponse<CategoryResponse> searchForAdmin(
+    PaginationResponse<AdminCategoryResponse> searchForAdmin(
             CategorySearchRequest request,
             Pageable pageable
     );
 
-    CategoryResponse getById(String id);
+    AdminCategoryResponse getById(String id);
 
-    CategoryResponse update(String id, UpdateCategoryRequest request);
+    AdminCategoryResponse update(String id, UpdateCategoryRequest request);
 
-    CategoryResponse updateStatus(
+    AdminCategoryResponse updateStatus(
             String id,
             UpdateCategoryStatusRequest request
     );
