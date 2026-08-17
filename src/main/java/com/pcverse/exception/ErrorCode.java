@@ -10,6 +10,9 @@ public enum ErrorCode {
 
     INTERNAL_ERROR(500, "Unexpected error occurred while processing request in backend service", HttpStatus.INTERNAL_SERVER_ERROR),
     VALIDATION_ERROR(400, "Invalid request data", HttpStatus.BAD_REQUEST),
+    INVALID_SORT_FIELD(400, "Invalid sort field", HttpStatus.BAD_REQUEST),
+    ENDPOINT_NOT_FOUND(404, "Endpoint not found", HttpStatus.NOT_FOUND),
+    METHOD_NOT_ALLOWED(405, "HTTP method is not allowed for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported request Content-Type", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     USER_ALREADY_EXISTS(409, "User already exists", HttpStatus.CONFLICT),
     OPTIMISTIC_LOCKING_CONFLICT(409, "Optimistic locking conflict", HttpStatus.CONFLICT),

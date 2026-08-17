@@ -5,9 +5,11 @@ import com.pcverse.dto.response.FieldErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -60,6 +64,73 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(ErrorCode.UNSUPPORTED_MEDIA_TYPE.getHttpStatus()).body(response);
+    }
+
+    /*
+     * NoResourceFoundException: request không khớp controller và Spring cũng
+     * không tìm thấy static resource tương ứng.
+     * NoHandlerFoundException: DispatcherServlet không tìm thấy controller
+     * handler phù hợp với request.
+     * Cả hai trường hợp đều biểu thị endpoint/resource không tồn tại và trả 404.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleEndpointNotFound(Exception exception, WebRequest request) {
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.ENDPOINT_NOT_FOUND,
+                request,
+                null
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.ENDPOINT_NOT_FOUND.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception,
+            WebRequest request
+    ) {
+        String supportedMethods = exception.getSupportedMethods() == null
+                ? "none"
+                : String.join(", ", exception.getSupportedMethods());
+
+        FieldErrorResponse detail = new FieldErrorResponse(
+                "method",
+                "HTTP method '" + exception.getMethod()
+                        + "' is not supported. Supported methods: "
+                        + supportedMethods
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.METHOD_NOT_ALLOWED,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.METHOD_NOT_ALLOWED.getHttpStatus())
+                .body(response);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSortField(
+            PropertyReferenceException exception,
+            WebRequest request
+    ) {
+        String propertyName = exception.getPropertyName();
+        FieldErrorResponse detail = new FieldErrorResponse(
+                "sort",
+                "Unknown sort field '" + propertyName + "'"
+        );
+        ErrorResponse response = buildErrorCodeResponse(
+                ErrorCode.INVALID_SORT_FIELD,
+                request,
+                List.of(detail)
+        );
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_SORT_FIELD.getHttpStatus())
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)
