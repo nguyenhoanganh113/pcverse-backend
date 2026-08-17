@@ -67,7 +67,7 @@ public class AdminCategoryController {
             @Valid @ModelAttribute CategorySearchRequest request,
             @PageableDefault(
                     size = 20,
-                    sort = "createdAt",
+                    sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC
             )
             Pageable pageable

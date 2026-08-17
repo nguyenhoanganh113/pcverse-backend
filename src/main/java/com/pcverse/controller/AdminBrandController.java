@@ -59,7 +59,7 @@ public class AdminBrandController {
             @Valid @ModelAttribute AdminBrandSearchRequest request,
             @PageableDefault(
                     size = 20,
-                    sort = "createdAt",
+                    sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC
             )
             Pageable pageable
