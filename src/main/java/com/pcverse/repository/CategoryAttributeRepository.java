@@ -48,7 +48,7 @@ public interface CategoryAttributeRepository extends
             }
     )
     Page<CategoryAttribute> findAll(
-            Specification<CategoryAttribute> specification,
+            @NonNull Specification<CategoryAttribute> specification,
             @NonNull Pageable pageable
     );
 
