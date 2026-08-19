@@ -70,6 +70,8 @@ public interface ProductMapper {
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
     AdminProductResponse toAdminResponse(Product product);
 
+    @Mapping(target = "productId", source = "id")
+    @Mapping(target = "productName", source = "name")
     AdminProductAttributesResponse toAdminAttributesResponse(Product product);
 
 }

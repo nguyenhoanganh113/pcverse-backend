@@ -64,7 +64,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
                 .code(request.code())
                 .label(request.label())
                 .displayOrder(request.displayOrder())
-                .active(true)
+                .active(false)
                 .build();
 
         attributeDefinition.addAttributeOption(attributeOption);

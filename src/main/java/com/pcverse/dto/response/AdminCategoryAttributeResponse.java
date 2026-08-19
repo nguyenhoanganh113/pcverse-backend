@@ -10,6 +10,7 @@ public record AdminCategoryAttributeResponse(
         String attributeDefinitionId,
         String attributeDefinitionCode,
         String attributeDefinitionName,
+        boolean attributeDefinitionActive,
         boolean required,
         boolean filterable,
         boolean highlighted,

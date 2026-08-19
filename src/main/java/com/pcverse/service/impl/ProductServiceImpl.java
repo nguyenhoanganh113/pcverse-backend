@@ -469,17 +469,29 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private Category findActiveCategory(String id) {
-        return categoryRepository.findByIdAndActiveTrue(id)
+        Category category = categoryRepository.findById(id)
                 .orElseThrow(() ->
                         new AppException(ErrorCode.CATEGORY_NOT_FOUND)
                 );
+
+        if (!category.isActive()) {
+            throw new AppException(ErrorCode.CATEGORY_INACTIVE);
+        }
+
+        return category;
     }
 
     private Brand findActiveBrand(String id) {
-        return brandRepository.findByIdAndActiveTrue(id)
+        Brand brand = brandRepository.findById(id)
                 .orElseThrow(() ->
                         new AppException(ErrorCode.BRAND_NOT_FOUND)
                 );
+
+        if (!brand.isActive()) {
+            throw new AppException(ErrorCode.BRAND_INACTIVE);
+        }
+
+        return brand;
     }
 
     private Product findProduct(String id) {

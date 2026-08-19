@@ -1,10 +1,11 @@
 package com.pcverse.service;
 
 import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.CategoryAttributeSearchRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.AdminCategoryAttributeResponse;
-
-import java.util.List;
+import com.pcverse.dto.response.PaginationResponse;
+import org.springframework.data.domain.Pageable;
 
 public interface CategoryAttributeService {
 
@@ -12,7 +13,11 @@ public interface CategoryAttributeService {
 
     AdminCategoryAttributeResponse getById(String categoryId, String categoryAttributeId);
 
-    List<AdminCategoryAttributeResponse> getAllByCategoryId(String categoryId);
+    PaginationResponse<AdminCategoryAttributeResponse> searchForAdmin(
+            String categoryId,
+            CategoryAttributeSearchRequest request,
+            Pageable pageable
+    );
 
     AdminCategoryAttributeResponse update(
             String categoryId,

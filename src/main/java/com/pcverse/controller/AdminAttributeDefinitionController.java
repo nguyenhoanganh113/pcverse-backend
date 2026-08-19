@@ -39,7 +39,7 @@ public class AdminAttributeDefinitionController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_DEFINITION_READ')")
     public ApiResponse<PaginationResponse<AdminAttributeDefinitionResponse>> search(
             @Valid @ModelAttribute
             AttributeDefinitionSearchRequest request,

@@ -32,6 +32,10 @@ public interface CategoryAttributeMapper {
             target = "attributeDefinitionName",
             source = "attributeDefinition.name"
     )
+    @Mapping(
+            target = "attributeDefinitionActive",
+            source = "attributeDefinition.active"
+    )
     AdminCategoryAttributeResponse toAdminResponse(CategoryAttribute categoryAttribute);
 
 }

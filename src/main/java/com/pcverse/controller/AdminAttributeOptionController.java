@@ -44,7 +44,7 @@ public class AdminAttributeOptionController {
     }
 
     @GetMapping("/{attributeOptionId}")
-    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_READ')")
     public ApiResponse<AdminAttributeOptionResponse> getById(
             @PathVariable String attributeDefinitionId,
             @PathVariable String attributeOptionId
@@ -59,7 +59,7 @@ public class AdminAttributeOptionController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_READ')")
     public ApiResponse<PaginationResponse<AdminAttributeOptionResponse>> searchForAdmin(
             @PathVariable String attributeDefinitionId,
             @Valid @ModelAttribute AttributeOptionSearchRequest request,
