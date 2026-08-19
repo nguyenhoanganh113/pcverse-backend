@@ -1,6 +1,7 @@
 package com.pcverse.repository;
 
 import com.pcverse.entity.CategoryAttribute;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -48,7 +49,7 @@ public interface CategoryAttributeRepository extends
     )
     Page<CategoryAttribute> findAll(
             Specification<CategoryAttribute> specification,
-            Pageable pageable
+            @NonNull Pageable pageable
     );
 
     boolean existsByAttributeDefinition_IdAndCategory_ActiveTrue(String attributeDefinitionId);
