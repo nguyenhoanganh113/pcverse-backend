@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-public record AdminProductSearchRequest(
+public record AdminProductFilterRequest(
         @Size(
                 max = 255,
                 message = "Keyword must not exceed 255 characters"
@@ -29,9 +29,11 @@ public record AdminProductSearchRequest(
         @PositiveOrZero(
                 message = "Maximum price must not be negative"
         )
-        BigDecimal maxPrice
+        BigDecimal maxPrice,
+
+        SortBy sortBy
 ) {
-    public AdminProductSearchRequest {
+    public AdminProductFilterRequest {
         keyword = stripToNull(keyword);
         categoryId = stripToNull(categoryId);
         brandId = stripToNull(brandId);
@@ -41,6 +43,14 @@ public record AdminProductSearchRequest(
         return value == null || value.isBlank()
                 ? null
                 : value.strip();
+    }
+
+    public enum SortBy {
+        PRICE_ASCENDING,
+        PRICE_DESCENDING,
+        NEWEST,
+        NAME_ASCENDING,
+        NAME_DESCENDING
     }
 
 }

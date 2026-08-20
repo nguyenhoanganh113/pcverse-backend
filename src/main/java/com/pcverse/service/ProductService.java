@@ -1,10 +1,6 @@
 package com.pcverse.service;
 
-import com.pcverse.dto.request.CreateProductRequest;
-import com.pcverse.dto.request.AdminProductSearchRequest;
-import com.pcverse.dto.request.UpdateProductRequest;
-import com.pcverse.dto.request.UpdateProductAttributesRequest;
-import com.pcverse.dto.request.UpdateProductStatusRequest;
+import com.pcverse.dto.request.*;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.AdminProductAttributesResponse;
 import com.pcverse.dto.response.AdminProductResponse;
@@ -14,10 +10,7 @@ public interface ProductService {
 
     AdminProductResponse create(CreateProductRequest request);
 
-    PaginationResponse<AdminProductResponse> searchForAdmin(
-            AdminProductSearchRequest request,
-            Pageable pageable
-    );
+    PaginationResponse<AdminProductResponse> searchForAdmin(AdminProductFilterRequest request, Pageable pageable);
 
     AdminProductResponse getById(String id);
 

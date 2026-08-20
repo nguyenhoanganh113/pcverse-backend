@@ -1,11 +1,6 @@
 package com.pcverse.service.impl;
 
-import com.pcverse.dto.request.AdminProductSearchRequest;
-import com.pcverse.dto.request.CreateProductRequest;
-import com.pcverse.dto.request.ProductAttributeValueRequest;
-import com.pcverse.dto.request.UpdateProductAttributesRequest;
-import com.pcverse.dto.request.UpdateProductRequest;
-import com.pcverse.dto.request.UpdateProductStatusRequest;
+import com.pcverse.dto.request.*;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.AdminProductAttributesResponse;
 import com.pcverse.dto.response.AdminProductResponse;
@@ -28,7 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,11 +85,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<AdminProductResponse> searchForAdmin(
-            AdminProductSearchRequest request,
-            Pageable pageable
-    ) {
+    public PaginationResponse<AdminProductResponse> searchForAdmin(AdminProductFilterRequest request, Pageable pageable) {
+
         validatePriceRange(request);
+
+        Pageable resolvedPageable = buildPageable(request, pageable);
 
         Specification<Product> specification = Specification.allOf(
                 ProductSpecification.hasKeyword(request.keyword()),
@@ -104,7 +101,7 @@ public class ProductServiceImpl implements ProductService {
         );
 
         Page<AdminProductResponse> page = productRepository
-                .findAll(specification, pageable)
+                .findAll(specification, resolvedPageable)
                 .map(productMapper::toAdminResponse);
 
         return PaginationResponse.<AdminProductResponse>builder()
@@ -114,6 +111,25 @@ public class ProductServiceImpl implements ProductService {
                 .totalElements(page.getTotalElements())
                 .data(page.getContent())
                 .build();
+    }
+
+    private Pageable buildPageable(AdminProductFilterRequest request, Pageable pageable) {
+        Sort sort = Sort.by("createdAt").descending();
+        if (request.sortBy() != null) {
+            sort = switch (request.sortBy()) {
+                case PRICE_ASCENDING -> Sort.by("price").ascending();
+                case PRICE_DESCENDING -> Sort.by("price").descending();
+                case NAME_ASCENDING -> Sort.by("name").ascending();
+                case NAME_DESCENDING -> Sort.by("name").descending();
+                case NEWEST -> Sort.by("createdAt").descending();
+            };
+        }
+
+        // Tie-breaker để kết quả phân trang luôn ổn định
+        sort = sort.and(Sort.by("id").ascending());
+
+        int size = Math.min(pageable.getPageSize(), 100);
+        return PageRequest.of(pageable.getPageNumber(), size, sort);
     }
 
     @Override
@@ -132,10 +148,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public AdminProductResponse update(
-            String id,
-            UpdateProductRequest request
-    ) {
+    public AdminProductResponse update(String id, UpdateProductRequest request) {
+
         if (!request.hasAnyField()) {
             throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
         }
@@ -164,10 +178,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public AdminProductResponse updateStatus(
-            String id,
-            UpdateProductStatusRequest request
-    ) {
+    public AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request) {
         Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
@@ -483,9 +494,7 @@ public class ProductServiceImpl implements ProductService {
 
     private Brand findActiveBrand(String id) {
         Brand brand = brandRepository.findById(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.BRAND_NOT_FOUND)
-                );
+                .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_FOUND));
 
         if (!brand.isActive()) {
             throw new AppException(ErrorCode.BRAND_INACTIVE);
@@ -496,16 +505,12 @@ public class ProductServiceImpl implements ProductService {
 
     private Product findProduct(String id) {
         return productRepository.findById(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
     private Product findProductWithAttributeValues(String id) {
         return productRepository.findByIdWithAttributeValues(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
     private void validateVersion(Product product, Long requestedVersion) {
@@ -514,7 +519,7 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private void validatePriceRange(AdminProductSearchRequest request) {
+    private void validatePriceRange(AdminProductFilterRequest request) {
         if (request.minPrice() != null
                 && request.maxPrice() != null
                 && request.minPrice().compareTo(request.maxPrice()) > 0) {

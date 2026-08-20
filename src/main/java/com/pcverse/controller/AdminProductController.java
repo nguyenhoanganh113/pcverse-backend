@@ -1,6 +1,6 @@
 package com.pcverse.controller;
 
-import com.pcverse.dto.request.AdminProductSearchRequest;
+import com.pcverse.dto.request.AdminProductFilterRequest;
 import com.pcverse.dto.request.CreateProductRequest;
 import com.pcverse.dto.request.UpdateProductRequest;
 import com.pcverse.dto.request.UpdateProductAttributesRequest;
@@ -14,7 +14,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -75,12 +74,8 @@ public class AdminProductController {
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
     public ApiResponse<PaginationResponse<AdminProductResponse>> search(
-            @Valid @ModelAttribute AdminProductSearchRequest request,
-            @PageableDefault(
-                    size = 20,
-                    sort = {"createdAt", "id"},
-                    direction = Sort.Direction.DESC
-            )
+            @Valid @ModelAttribute AdminProductFilterRequest request,
+            @PageableDefault(size = 20)
             Pageable pageable
     ) {
         return ApiResponse
