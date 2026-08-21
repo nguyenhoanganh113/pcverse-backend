@@ -1,13 +1,9 @@
 package com.pcverse.service.impl;
 
-import com.pcverse.dto.request.AdminProductSearchRequest;
-import com.pcverse.dto.request.CreateProductRequest;
-import com.pcverse.dto.request.ProductAttributeValueRequest;
-import com.pcverse.dto.request.UpdateProductAttributesRequest;
-import com.pcverse.dto.request.UpdateProductRequest;
-import com.pcverse.dto.request.UpdateProductStatusRequest;
+import com.pcverse.dto.request.*;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.AdminProductAttributesResponse;
+import com.pcverse.dto.response.AdminProductConfigurationResponse;
 import com.pcverse.dto.response.AdminProductResponse;
 import com.pcverse.entity.*;
 import com.pcverse.enums.ProductStatus;
@@ -28,7 +24,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,11 +86,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<AdminProductResponse> searchForAdmin(
-            AdminProductSearchRequest request,
-            Pageable pageable
-    ) {
+    public PaginationResponse<AdminProductResponse> searchForAdmin(AdminProductFilterRequest request, Pageable pageable) {
+
         validatePriceRange(request);
+
+        Pageable resolvedPageable = buildPageable(request, pageable);
 
         Specification<Product> specification = Specification.allOf(
                 ProductSpecification.hasKeyword(request.keyword()),
@@ -104,7 +102,7 @@ public class ProductServiceImpl implements ProductService {
         );
 
         Page<AdminProductResponse> page = productRepository
-                .findAll(specification, pageable)
+                .findAll(specification, resolvedPageable)
                 .map(productMapper::toAdminResponse);
 
         return PaginationResponse.<AdminProductResponse>builder()
@@ -114,6 +112,25 @@ public class ProductServiceImpl implements ProductService {
                 .totalElements(page.getTotalElements())
                 .data(page.getContent())
                 .build();
+    }
+
+    private Pageable buildPageable(AdminProductFilterRequest request, Pageable pageable) {
+        Sort sort = Sort.by("createdAt").descending();
+        if (request.sortBy() != null) {
+            sort = switch (request.sortBy()) {
+                case PRICE_ASCENDING -> Sort.by("price").ascending();
+                case PRICE_DESCENDING -> Sort.by("price").descending();
+                case NAME_ASCENDING -> Sort.by("name").ascending();
+                case NAME_DESCENDING -> Sort.by("name").descending();
+                case NEWEST -> Sort.by("createdAt").descending();
+            };
+        }
+
+        // Tie-breaker để kết quả phân trang luôn ổn định
+        sort = sort.and(Sort.by("id").ascending());
+
+        int size = Math.min(pageable.getPageSize(), 100);
+        return PageRequest.of(pageable.getPageNumber(), size, sort);
     }
 
     @Override
@@ -132,42 +149,130 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public AdminProductResponse update(
+    public AdminProductConfigurationResponse updateConfiguration(
             String id,
-            UpdateProductRequest request
+            UpdateProductConfigurationRequest request
     ) {
-        if (!request.hasAnyField()) {
-            throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
-        }
-
         Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
-        updateCategory(product, request.categoryId());
-        updateBrand(product, request.brandId());
+        Category category = findActiveCategory(request.categoryId());
+        Brand brand = findActiveBrand(request.brandId());
+
         updateSku(product, request.sku());
         updateNameAndSlug(product, request.name());
 
-        productMapper.partialUpdate(request, product);
+        product.setCategory(category);
+        product.setBrand(brand);
+        productMapper.updateConfiguration(request, product);
+        product.setImages(new ArrayList<>(request.images()));
 
-        if (request.images() != null) {
-            product.setImages(new ArrayList<>(request.images()));
-        }
+        replaceAttributeValues(
+                product,
+                category,
+                request.productAttributeValues()
+        );
 
         if (product.getProductStatus() == ProductStatus.ACTIVE) {
             validateCanActivate(product);
         }
 
-        flushUpdate();
-        return productMapper.toAdminResponse(product);
+        flushConfigurationUpdate(product, request.version());
+        return productMapper.toAdminConfigurationResponse(product);
+    }
+
+    private void replaceAttributeValues(
+            Product product,
+            Category category,
+            List<ProductAttributeValueRequest> requestedValues
+    ) {
+        List<CategoryAttribute> categoryAttributes = categoryAttributeRepository
+                .findAllByCategory_Id(category.getId());
+
+        Map<String, CategoryAttribute> categoryAttributeByDefinitionId =
+                categoryAttributes.stream()
+                        .collect(Collectors.toMap(
+                                categoryAttribute -> categoryAttribute
+                                        .getAttributeDefinition()
+                                        .getId(),
+                                Function.identity()
+                        ));
+
+        Map<String, AttributeOption> requestedOptionByDefinitionId =
+                new HashMap<>();
+        Set<String> requestedDefinitionIds = new HashSet<>();
+
+        for (ProductAttributeValueRequest attributeRequest : requestedValues) {
+            String definitionId = attributeRequest.attributeDefinitionId();
+
+            if (!requestedDefinitionIds.add(definitionId)) {
+                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
+            }
+
+            CategoryAttribute categoryAttribute =
+                    categoryAttributeByDefinitionId.get(definitionId);
+            if (categoryAttribute == null) {
+                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_NOT_ALLOWED);
+            }
+            if (!categoryAttribute.getAttributeDefinition().isActive()) {
+                throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
+            }
+
+            AttributeOption option = attributeOptionRepository
+                    .findByIdAndAttributeDefinitionId(
+                            attributeRequest.attributeOptionId(),
+                            definitionId
+                    )
+                    .orElseThrow(() -> new AppException(
+                            ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND
+                    ));
+            if (!option.isActive()) {
+                throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
+            }
+
+            requestedOptionByDefinitionId.put(definitionId, option);
+        }
+
+        Map<String, ProductAttributeValue> existingValueByDefinitionId =
+                product.getAttributeValues().stream()
+                        .collect(Collectors.toMap(
+                                value -> value.getAttributeDefinition().getId(),
+                                Function.identity()
+                        ));
+
+        for (ProductAttributeValue existingValue : new ArrayList<>(product.getAttributeValues())) {
+            String definitionId = existingValue
+                    .getAttributeDefinition()
+                    .getId();
+
+            if (!requestedOptionByDefinitionId.containsKey(definitionId)) {
+                product.removeProductAttributeValue(existingValue);
+            }
+        }
+
+        requestedOptionByDefinitionId.forEach((definitionId, option) -> {
+            ProductAttributeValue existingValue = existingValueByDefinitionId.get(definitionId);
+
+            if (existingValue != null) {
+                existingValue.setAttributeOption(option);
+                return;
+            }
+
+            ProductAttributeValue newValue = ProductAttributeValue.builder()
+                    .attributeDefinition(
+                            categoryAttributeByDefinitionId
+                                    .get(definitionId)
+                                    .getAttributeDefinition()
+                    )
+                    .attributeOption(option)
+                    .build();
+            product.addAttributeValue(newValue);
+        });
     }
 
     @Override
     @Transactional
-    public AdminProductResponse updateStatus(
-            String id,
-            UpdateProductStatusRequest request
-    ) {
+    public AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request) {
         Product product = findProductWithAttributeValues(id);
         validateVersion(product, request.version());
 
@@ -182,116 +287,6 @@ public class ProductServiceImpl implements ProductService {
         product.setProductStatus(request.productStatus());
         flushUpdate();
         return productMapper.toAdminResponse(product);
-    }
-
-    @Override
-    @Transactional
-    public AdminProductAttributesResponse updateAttributes(String id, UpdateProductAttributesRequest request) {
-        Product product = findProductWithAttributeValues(id);
-        validateVersion(product, request.version());
-
-        List<CategoryAttribute> categoryAttributes = categoryAttributeRepository
-                .findAllByCategory_Id(product.getCategory().getId());
-
-        // Key sẽ là id của AttributeDefinition, Value là CategoryAttribute
-        Map<String, CategoryAttribute> categoryAttributeByDefinitionId =
-                categoryAttributes.stream()
-                        .collect(Collectors.toMap(
-                                categoryAttribute -> categoryAttribute
-                                        .getAttributeDefinition()
-                                        .getId(),
-                                categoryAttribute -> categoryAttribute
-                        ));
-
-        Map<String, AttributeOption> selectedOptionByDefinitionId = new HashMap<>();
-
-        Set<String> requestDefinitionIds = new HashSet<>();
-        for (ProductAttributeValueRequest attributeRequest : request.productAttributeValues()) {
-
-            String attributeDefinitionId = attributeRequest.attributeDefinitionId();
-
-            // Check duplicate của attributeDefinition trong request để tránh trường hợp gửi cùng 1 attributeDefinition
-            if (!requestDefinitionIds.add(attributeDefinitionId)) {
-                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
-            }
-
-            // Check từng AttributeDefinition có gán với Category của product đang xét hay không
-            CategoryAttribute categoryAttribute = categoryAttributeByDefinitionId.get(attributeDefinitionId);
-            if (categoryAttribute == null) {
-                throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_NOT_ALLOWED);
-            }
-            // Check AttributeDefinition của từng categoryAttribute đang xét xem có active hay không
-            if (!categoryAttribute.getAttributeDefinition().isActive()) {
-                throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
-            }
-
-            AttributeOption attributeOption = attributeOptionRepository
-                    .findByIdAndAttributeDefinitionId(attributeRequest.attributeOptionId(), attributeDefinitionId)
-                    .orElseThrow(() -> new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND));
-            if (!attributeOption.isActive()) {
-                throw new AppException(ErrorCode.ATTRIBUTE_OPTION_INACTIVE);
-            }
-
-            selectedOptionByDefinitionId.put(attributeDefinitionId, attributeOption);
-        }
-
-        if (product.getProductStatus() == ProductStatus.ACTIVE) {
-            boolean missingRequiredAttribute =  categoryAttributes.stream()
-                    .filter(CategoryAttribute::isRequired)
-                    .map(categoryAttribute ->
-                            categoryAttribute
-                                    .getAttributeDefinition()
-                                    .getId()
-                    )
-                    .anyMatch(requiredAttributeDefinitionId ->
-                            !requestDefinitionIds.contains(requiredAttributeDefinitionId));
-
-            if (missingRequiredAttribute) {
-                throw new AppException(ErrorCode.PRODUCT_REQUIRED_ATTRIBUTES_MISSING);
-            }
-        }
-
-        Map<String, ProductAttributeValue> existingValueByDefinitionId = product.getAttributeValues().stream()
-                        .collect(Collectors.toMap(
-                                value -> value.getAttributeDefinition().getId(),
-                                Function.identity()
-                        ));
-
-        // Remove
-        for (ProductAttributeValue existingValue : new ArrayList<>(product.getAttributeValues())) {
-
-            String definitionId = existingValue.getAttributeDefinition().getId();
-
-            // Nếu trong updateDTO không còn AttributeDefinitionId nào thì bỏ liên kết trong table ProducAttribteValue
-            if (!selectedOptionByDefinitionId.containsKey(definitionId)) {
-                product.removeProductAttributeValue(existingValue);
-            }
-
-        }
-
-        // add cái AttributeDefinition mới, gán quan hệ trong bảng trung gian ProductAttributeValue
-        for (Map.Entry<String, AttributeOption> entry : selectedOptionByDefinitionId.entrySet()) {
-
-            String definitionId = entry.getKey();
-            AttributeOption attributeOption = entry.getValue();
-
-            ProductAttributeValue existingValue = existingValueByDefinitionId.get(definitionId);
-            if (existingValue != null) {
-                existingValue.setAttributeOption(attributeOption);
-                continue;
-            }
-
-            AttributeDefinition attributeDefinition = categoryAttributeByDefinitionId.get(definitionId).getAttributeDefinition();
-            ProductAttributeValue newValue = ProductAttributeValue.builder()
-                    .attributeDefinition(attributeDefinition)
-                    .attributeOption(attributeOption)
-                    .build();
-
-            product.addAttributeValue(newValue);
-        }
-
-        flushAttributeUpdate(product, request.version());
-        return productMapper.toAdminAttributesResponse(product);
     }
 
     @Override
@@ -318,53 +313,47 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private void updateCategory(Product product, String requestedCategoryId) {
-        if (requestedCategoryId == null
-                || product.getCategory().getId().equals(requestedCategoryId)) {
-            return;
-        }
-
-        if (!product.getAttributeValues().isEmpty()) {
-            throw new AppException(
-                    ErrorCode.PRODUCT_CATEGORY_CHANGE_NOT_ALLOWED
-            );
-        }
-
-        product.setCategory(findActiveCategory(requestedCategoryId));
-    }
-
-    private void flushAttributeUpdate(Product product, Long expectedVersion) {
+    private void flushConfigurationUpdate(
+            Product product,
+            Long expectedVersion
+    ) {
         try {
             productRepository.flush();
 
-            int updatedRows = productRepository.incrementVersionIfMatches(
-                    product.getId(),
-                    expectedVersion
-            );
-            if (updatedRows == 0) {
-                throw new AppException(
-                        ErrorCode.PRODUCT_CONCURRENT_MODIFICATION
+            // Nếu chỉ collection attributeValues thay đổi thì @OptimisticLock
+            // excluded không tự tăng version của Product. Khi đó tăng bằng CAS.
+            if (Objects.equals(product.getVersion(), expectedVersion)) {
+                int updatedRows = productRepository.incrementVersionIfMatches(
+                        product.getId(),
+                        expectedVersion
                 );
-            }
+                if (updatedRows == 0) {
+                    throw new AppException(
+                            ErrorCode.PRODUCT_CONCURRENT_MODIFICATION
+                    );
+                }
 
-            entityManager.refresh(product);
+                entityManager.refresh(product);
+            }
         } catch (OptimisticLockingFailureException exception) {
             throw new AppException(ErrorCode.PRODUCT_CONCURRENT_MODIFICATION);
         } catch (DataIntegrityViolationException exception) {
-            if (ConstraintUtils.hasConstraint(exception, "uk_product_attribute")) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_sku")) {
+                throw new AppException(ErrorCode.PRODUCT_SKU_ALREADY_EXISTS);
+            }
+            if (ConstraintUtils.hasConstraint(exception, "uk_products_slug")) {
+                throw new AppException(ErrorCode.PRODUCT_SLUG_ALREADY_EXISTS);
+            }
+            if (ConstraintUtils.hasConstraint(
+                    exception,
+                    "uk_product_attribute"
+            )) {
                 throw new AppException(ErrorCode.PRODUCT_ATTRIBUTE_DUPLICATE);
             }
-            throw new AppException(ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION);
+            throw new AppException(
+                    ErrorCode.PRODUCT_DATA_INTEGRITY_VIOLATION
+            );
         }
-    }
-
-    private void updateBrand(Product product, String requestedBrandId) {
-        if (requestedBrandId == null
-                || product.getBrand().getId().equals(requestedBrandId)) {
-            return;
-        }
-
-        product.setBrand(findActiveBrand(requestedBrandId));
     }
 
     private void updateSku(Product product, String requestedSku) {
@@ -469,31 +458,37 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private Category findActiveCategory(String id) {
-        return categoryRepository.findByIdAndActiveTrue(id)
+        Category category = categoryRepository.findById(id)
                 .orElseThrow(() ->
                         new AppException(ErrorCode.CATEGORY_NOT_FOUND)
                 );
+
+        if (!category.isActive()) {
+            throw new AppException(ErrorCode.CATEGORY_INACTIVE);
+        }
+
+        return category;
     }
 
     private Brand findActiveBrand(String id) {
-        return brandRepository.findByIdAndActiveTrue(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.BRAND_NOT_FOUND)
-                );
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_FOUND));
+
+        if (!brand.isActive()) {
+            throw new AppException(ErrorCode.BRAND_INACTIVE);
+        }
+
+        return brand;
     }
 
     private Product findProduct(String id) {
         return productRepository.findById(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.PRODUCT_NOT_FOUND)
-                );
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
     private Product findProductWithAttributeValues(String id) {
-        return productRepository.findByIdWithAttributeValues(id)
-                .orElseThrow(() ->
-                        new AppException(ErrorCode.PRODUCT_NOT_FOUND)
-                );
+        return productRepository.findWithAttributeValuesById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
     private void validateVersion(Product product, Long requestedVersion) {
@@ -502,7 +497,7 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private void validatePriceRange(AdminProductSearchRequest request) {
+    private void validatePriceRange(AdminProductFilterRequest request) {
         if (request.minPrice() != null
                 && request.maxPrice() != null
                 && request.minPrice().compareTo(request.maxPrice()) > 0) {

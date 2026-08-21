@@ -1,8 +1,10 @@
 package com.pcverse.service.impl;
 
 import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.CategoryAttributeSearchRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.AdminCategoryAttributeResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.AttributeDefinition;
 import com.pcverse.entity.Category;
 import com.pcverse.entity.CategoryAttribute;
@@ -13,15 +15,18 @@ import com.pcverse.repository.AttributeDefinitionRepository;
 import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductAttributeValueRepository;
+import com.pcverse.repository.specification.CategoryAttributeSpecification;
 import com.pcverse.service.CategoryAttributeService;
 import com.pcverse.utils.ConstraintUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -100,15 +105,35 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AdminCategoryAttributeResponse> getAllByCategoryId(String categoryId) {
+    public PaginationResponse<AdminCategoryAttributeResponse> searchForAdmin(
+            String categoryId,
+            CategoryAttributeSearchRequest request,
+            Pageable pageable
+    ) {
         if (!categoryRepository.existsById(categoryId)) {
             throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
         }
-        return categoryAttributeRepository
-                .findAllByCategory_Id(categoryId)
-                .stream()
-                .map(categoryAttributeMapper::toAdminResponse)
-                .toList();
+
+        Specification<CategoryAttribute> specification = Specification.allOf(
+                CategoryAttributeSpecification.belongsToCategory(categoryId),
+                CategoryAttributeSpecification.hasKeyword(request.keyword()),
+                CategoryAttributeSpecification.hasRequired(request.required()),
+                CategoryAttributeSpecification.hasFilterable(request.filterable()),
+                CategoryAttributeSpecification.hasHighlighted(request.highlighted())
+        );
+
+        Page<AdminCategoryAttributeResponse> page = categoryAttributeRepository
+                .findAll(specification, pageable)
+                .map(categoryAttributeMapper::toAdminResponse);
+
+        return PaginationResponse
+                .<AdminCategoryAttributeResponse>builder()
+                .currentPage(page.getNumber())
+                .size(page.getSize())
+                .totalPages(page.getTotalPages())
+                .totalElements(page.getTotalElements())
+                .data(page.getContent())
+                .build();
     }
 
     @Override
@@ -176,15 +201,7 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
             Long version
     ) {
         if (version == null) {
-            throw new AppException(
-                    ErrorCode.CATEGORY_ATTRIBUTE_VERSION_REQUIRED
-            );
-        }
-
-        if (version < 0) {
-            throw new AppException(
-                    ErrorCode.CATEGORY_ATTRIBUTE_CONCURRENT_UPDATE
-            );
+            throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_VERSION_REQUIRED);
         }
 
         CategoryAttribute categoryAttribute =

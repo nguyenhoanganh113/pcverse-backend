@@ -1,18 +1,21 @@
 package com.pcverse.controller;
 
 import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.CategoryAttributeSearchRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.AdminCategoryAttributeResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.service.CategoryAttributeService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/categories/{categoryId}/attributes")
@@ -43,7 +46,7 @@ public class AdminCategoryAttributeController {
     }
 
     @GetMapping("/{categoryAttributeId}")
-    @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_READ')")
     public ApiResponse<AdminCategoryAttributeResponse> getById(
             @PathVariable String categoryId,
             @PathVariable String categoryAttributeId
@@ -56,21 +59,29 @@ public class AdminCategoryAttributeController {
                 .build();
     }
 
-    @GetMapping
+    @GetMapping("/search")
     @PreAuthorize(
-            "hasAuthority('ROLE_CATEGORY_ATTRIBUTE_VIEW')"
+            "hasAuthority('ROLE_CATEGORY_ATTRIBUTE_READ')"
     )
-    public ApiResponse<List<AdminCategoryAttributeResponse>> getAllByCategoryId(
-            @PathVariable String categoryId
+    public ApiResponse<PaginationResponse<AdminCategoryAttributeResponse>> searchForAdmin(
+            @PathVariable String categoryId,
+            @Valid @ModelAttribute CategoryAttributeSearchRequest request,
+            @PageableDefault(
+                    size = 20,
+                    sort = {"displayOrder", "id"},
+                    direction = Sort.Direction.ASC
+            )
+            Pageable pageable
     ) {
-        List<AdminCategoryAttributeResponse> response = categoryAttributeService
-                .getAllByCategoryId(categoryId);
-
         return ApiResponse
-                .<List<AdminCategoryAttributeResponse>>builder()
+                .<PaginationResponse<AdminCategoryAttributeResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category attributes retrieved successfully")
-                .data(response)
+                .data(categoryAttributeService.searchForAdmin(
+                        categoryId,
+                        request,
+                        pageable
+                ))
                 .build();
     }
 

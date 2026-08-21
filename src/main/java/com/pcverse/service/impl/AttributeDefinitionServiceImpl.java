@@ -48,7 +48,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
         }
 
         AttributeDefinition attributeDefinition = mapper.toEntity(request);
-        attributeDefinition.setActive(true);
+        attributeDefinition.setActive(false);
 
         try {
             attributeDefinitionRepository

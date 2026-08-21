@@ -5,10 +5,8 @@ import lombok.Builder;
 import java.util.List;
 
 @Builder
-public record AdminProductAttributesResponse(
-        String productId,
-        String productName,
-        Long version,
+public record AdminProductConfigurationResponse(
+        AdminProductResponse product,
         List<ProductAttributeValueResponse> attributeValues
 ) {
 }

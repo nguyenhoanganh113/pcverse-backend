@@ -1,6 +1,7 @@
 package com.pcverse.repository;
 
 import com.pcverse.entity.Product;
+import com.pcverse.enums.ProductStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -40,9 +41,18 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
             "attributeValues.attributeDefinition",
             "attributeValues.attributeOption"
     })
-    @Query("select product from Product product where product.id = :productId")
-    Optional<Product> findByIdWithAttributeValues(
-            @Param("productId") String productId
+    Optional<Product> findWithAttributeValuesById(String productId);
+
+    @EntityGraph(attributePaths = {
+            "category",
+            "brand",
+            "attributeValues",
+            "attributeValues.attributeDefinition",
+            "attributeValues.attributeOption"
+    })
+    Optional<Product> findBySlugAndProductStatusAndCategory_ActiveTrueAndBrand_ActiveTrue(
+            String slug,
+            ProductStatus productStatus
     );
 
     @Override
@@ -60,4 +70,5 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
             @Param("productId") String productId,
             @Param("expectedVersion") Long expectedVersion
     );
+
 }

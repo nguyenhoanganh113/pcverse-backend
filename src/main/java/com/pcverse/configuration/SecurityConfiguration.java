@@ -32,6 +32,11 @@ public class SecurityConfiguration {
             "/api/v1/registrations"
     };
 
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
+            "/api/v1/products/**",
+            "/api/v1/categories/**"
+    };
+
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
@@ -48,6 +53,7 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers(
                                 "/api/v1/admin/**",
                                 "/api/v1/users/**"
@@ -93,6 +99,14 @@ public class SecurityConfiguration {
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration(
                 "/api/v1/registrations",
+                configuration
+        );
+        source.registerCorsConfiguration(
+                "/api/v1/products/**",
+                configuration
+        );
+        source.registerCorsConfiguration(
+                "/api/v1/categories/**",
                 configuration
         );
         source.registerCorsConfiguration(

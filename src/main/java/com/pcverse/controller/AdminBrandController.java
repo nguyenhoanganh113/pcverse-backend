@@ -42,7 +42,7 @@ public class AdminBrandController {
     }
 
     @GetMapping("/{brandId}")
-    @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_BRAND_READ')")
     public ApiResponse<AdminBrandResponse> getById(
             @PathVariable String brandId
     ) {
@@ -54,7 +54,7 @@ public class AdminBrandController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('ROLE_BRAND_VIEW')")
+    @PreAuthorize("hasAuthority('ROLE_BRAND_READ')")
     public ApiResponse<PaginationResponse<AdminBrandResponse>> search(
             @Valid @ModelAttribute AdminBrandSearchRequest request,
             @PageableDefault(

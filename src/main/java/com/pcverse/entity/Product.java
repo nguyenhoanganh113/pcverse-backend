@@ -44,6 +44,10 @@ import java.util.List;
                 @Index(
                         name = "idx_products_price",
                         columnList = "price"
+                ),
+                @Index(
+                        name = "idx_products_created_at_id",
+                        columnList = "created_at DESC, id ASC"
                 )
         }
 )
