@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, String>, JpaSpecificationExecutor<Category> {
 
@@ -15,5 +17,7 @@ public interface CategoryRepository extends JpaRepository<Category, String>, Jpa
     boolean existsByNameIgnoreCaseAndIdNot(String name, String id);
 
     boolean existsBySlugAndIdNot(String slug, String id);
+
+    Optional<Category> findByIdAndActiveTrue(String id);
 
 }

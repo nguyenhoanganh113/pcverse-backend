@@ -62,6 +62,8 @@ public enum ErrorCode {
     PRODUCT_PRICE_RANGE_REQUIRED(400, "Product price range is required", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_INVALID(400, "Product price is invalid", HttpStatus.BAD_REQUEST),
     PRODUCT_PRICE_RANGE_INVALID(400, "Product price range is invalid", HttpStatus.BAD_REQUEST),
+    PRODUCT_FILTER_CATEGORY_REQUIRED(400, "Category is required when filtering by attributes", HttpStatus.BAD_REQUEST),
+    PRODUCT_ATTRIBUTE_FILTER_INVALID(400, "Attribute option is not an active filter of the selected category", HttpStatus.BAD_REQUEST),
     PRODUCT_CONCURRENT_MODIFICATION(409, "Product was modified by another request. Please retry", HttpStatus.CONFLICT),
     PRODUCT_VERSION_REQUIRED(400, "Product version must not be null", HttpStatus.BAD_REQUEST),
     PRODUCT_SKU_ALREADY_EXISTS(409, "Product SKU already exists", HttpStatus.CONFLICT),

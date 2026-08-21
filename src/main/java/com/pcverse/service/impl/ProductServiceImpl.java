@@ -10,11 +10,13 @@ import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.ProductMapper;
+import com.pcverse.repository.AttributeDefinitionRepository;
 import com.pcverse.repository.AttributeOptionRepository;
 import com.pcverse.repository.BrandRepository;
 import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductRepository;
+import com.pcverse.repository.ProductAttributeValueRepository;
 import com.pcverse.repository.specification.ProductSpecification;
 import com.pcverse.service.ProductService;
 import com.pcverse.utils.ConstraintUtils;
@@ -50,7 +52,9 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final CategoryAttributeRepository categoryAttributeRepository;
+    private final AttributeDefinitionRepository attributeDefinitionRepository;
     private final AttributeOptionRepository attributeOptionRepository;
+    private final ProductAttributeValueRepository productAttributeValueRepository;
     private final ProductMapper productMapper;
     private final EntityManager entityManager;
 
@@ -153,7 +157,7 @@ public class ProductServiceImpl implements ProductService {
             String id,
             UpdateProductConfigurationRequest request
     ) {
-        Product product = findProductWithAttributeValues(id);
+        Product product = findProduct(id);
         validateVersion(product, request.version());
 
         Category category = findActiveCategory(request.categoryId());
@@ -166,6 +170,8 @@ public class ProductServiceImpl implements ProductService {
         product.setBrand(brand);
         productMapper.updateConfiguration(request, product);
         product.setImages(new ArrayList<>(request.images()));
+
+        lockRequestedAttributeDependencies(request.productAttributeValues());
 
         replaceAttributeValues(
                 product,
@@ -273,7 +279,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public AdminProductResponse updateStatus(String id, UpdateProductStatusRequest request) {
-        Product product = findProductWithAttributeValues(id);
+        Product product = findProduct(id);
         validateVersion(product, request.version());
 
         if (product.getProductStatus() == request.productStatus()) {
@@ -281,12 +287,49 @@ public class ProductServiceImpl implements ProductService {
         }
 
         if (request.productStatus() == ProductStatus.ACTIVE) {
+            lockProductAttributeDependencies(product.getId());
+            product = findProductWithAttributeValues(id);
             validateCanActivate(product);
         }
 
         product.setProductStatus(request.productStatus());
         flushUpdate();
         return productMapper.toAdminResponse(product);
+    }
+
+    private void lockRequestedAttributeDependencies(
+            List<ProductAttributeValueRequest> requestedValues
+    ) {
+        List<String> definitionIds = requestedValues.stream()
+                .map(ProductAttributeValueRequest::attributeDefinitionId)
+                .toList();
+        List<String> optionIds = requestedValues.stream()
+                .map(ProductAttributeValueRequest::attributeOptionId)
+                .toList();
+
+        lockAttributeDependencies(definitionIds, optionIds);
+    }
+
+    private void lockProductAttributeDependencies(String productId) {
+        List<String> definitionIds = productAttributeValueRepository
+                .findAttributeDefinitionIdsByProductId(productId);
+        List<String> optionIds = productAttributeValueRepository
+                .findAttributeOptionIdsByProductId(productId);
+
+        lockAttributeDependencies(definitionIds, optionIds);
+    }
+
+    private void lockAttributeDependencies(
+            List<String> definitionIds,
+            List<String> optionIds
+    ) {
+        if (!definitionIds.isEmpty()) {
+            attributeDefinitionRepository.findAllByIdForUpdate(definitionIds);
+        }
+
+        if (!optionIds.isEmpty()) {
+            attributeOptionRepository.findAllByIdForUpdate(optionIds);
+        }
     }
 
     @Override

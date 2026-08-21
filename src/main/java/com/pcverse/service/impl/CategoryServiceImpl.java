@@ -11,6 +11,7 @@ import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.CategoryMapper;
+import com.pcverse.repository.AttributeDefinitionRepository;
 import com.pcverse.repository.CategoryAttributeRepository;
 import com.pcverse.repository.CategoryRepository;
 import com.pcverse.repository.ProductRepository;
@@ -35,6 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryAttributeRepository categoryAttributeRepository;
+    private final AttributeDefinitionRepository attributeDefinitionRepository;
     private final ProductRepository productRepository;
     private final CategoryMapper categoryMapper;
 
@@ -144,6 +146,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         // Nếu trạng thái đang từ inactive sang active thì
         if (requestedActive) {
+            lockAttributeDefinitions(id);
             // Kiểm tra xem CategoryAttribute có row nào mà AttributeDefinition đang INACTIVE hay không ?
             validateCanActivate(id);
         }
@@ -151,6 +154,15 @@ public class CategoryServiceImpl implements CategoryService {
         category.setActive(requestedActive);
         flushUpdate();
         return categoryMapper.toAdminResponse(category);
+    }
+
+    private void lockAttributeDefinitions(String categoryId) {
+        var definitionIds = categoryAttributeRepository
+                .findAttributeDefinitionIdsByCategoryId(categoryId);
+
+        if (!definitionIds.isEmpty()) {
+            attributeDefinitionRepository.findAllByIdForUpdate(definitionIds);
+        }
     }
 
     private void validateCanActivate(String categoryId) {
