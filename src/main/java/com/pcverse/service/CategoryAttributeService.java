@@ -1,15 +1,15 @@
 package com.pcverse.service;
 
-import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.BulkCreateCategoryAttributesRequest;
 import com.pcverse.dto.request.CategoryAttributeSearchRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.AdminCategoryAttributeResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import org.springframework.data.domain.Pageable;
 
-public interface CategoryAttributeService {
+import java.util.List;
 
-    AdminCategoryAttributeResponse create(String categoryId, CreateCategoryAttributeRequest request);
+public interface CategoryAttributeService {
 
     AdminCategoryAttributeResponse getById(String categoryId, String categoryAttributeId);
 
@@ -23,6 +23,11 @@ public interface CategoryAttributeService {
             String categoryId,
             String categoryAttributeId,
             UpdateCategoryAttributeRequest request
+    );
+
+    List<AdminCategoryAttributeResponse> createBulk(
+            String categoryId,
+            BulkCreateCategoryAttributesRequest request
     );
 
     void delete(

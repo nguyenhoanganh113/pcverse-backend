@@ -12,13 +12,17 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface CategoryAttributeRepository extends
         JpaRepository<CategoryAttribute, String>,
         JpaSpecificationExecutor<CategoryAttribute> {
 
-    boolean existsByCategory_IdAndAttributeDefinition_Id(String categoryId, String attributeId);
+    boolean existsByCategory_IdAndAttributeDefinition_IdIn(
+            String categoryId,
+            Set<String> attributeDefinitionIds
+    );
 
     boolean existsByAttributeDefinition_Id(String attributeId);
 

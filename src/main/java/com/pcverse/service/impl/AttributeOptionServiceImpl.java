@@ -1,7 +1,8 @@
 package com.pcverse.service.impl;
 
-import com.pcverse.dto.request.AttributeOptionCreateRequest;
 import com.pcverse.dto.request.AttributeOptionSearchRequest;
+import com.pcverse.dto.request.AttributeOptionCreateRequest;
+import com.pcverse.dto.request.BulkCreateAttributeOptionsRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionStatusRequest;
 import com.pcverse.dto.response.AdminAttributeOptionResponse;
@@ -28,7 +29,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -42,8 +48,10 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
     @Override
     @Transactional
-    public AdminAttributeOptionResponse create(String attributeDefinitionId,
-                                               AttributeOptionCreateRequest request) {
+    public List<AdminAttributeOptionResponse> createBulk(
+            String attributeDefinitionId,
+            BulkCreateAttributeOptionsRequest request
+    ) {
 
         AttributeDefinition attributeDefinition = attributeDefinitionRepository
                 .findById(attributeDefinitionId)
@@ -56,23 +64,36 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
         }
 
-        if (attributeOptionRepository.existsByAttributeDefinitionIdAndCodeIgnoreCase(attributeDefinitionId, request.code())) {
+        Set<String> requestedCodes = new HashSet<>();
+        for (AttributeOptionCreateRequest item : request.options()) {
+            if (!requestedCodes.add(item.code())) {
+                throw new AppException(ErrorCode.ATTRIBUTE_OPTION_DUPLICATE);
+            }
+        }
+
+        if (attributeOptionRepository.existsAnyByAttributeDefinitionIdAndCodes(
+                attributeDefinitionId,
+                requestedCodes
+        )) {
             throw new AppException(ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS);
         }
 
-        AttributeOption attributeOption = AttributeOption.builder()
-                .code(request.code())
-                .label(request.label())
-                .displayOrder(request.displayOrder())
-                .active(false)
-                .build();
+        List<AttributeOption> newOptions = new ArrayList<>();
+        for (AttributeOptionCreateRequest item : request.options()) {
+            AttributeOption attributeOption = AttributeOption.builder()
+                    .code(item.code())
+                    .label(item.label())
+                    .displayOrder(item.displayOrder())
+                    .active(false)
+                    .build();
 
-        attributeDefinition.addAttributeOption(attributeOption);
+            attributeDefinition.addAttributeOption(attributeOption);
+            newOptions.add(attributeOption);
+        }
 
         try {
-            AttributeOption saved = attributeOptionRepository.saveAndFlush(attributeOption);
-
-            return attributeOptionMapper.toAdminResponse(saved);
+            attributeOptionRepository.saveAll(newOptions);
+            attributeOptionRepository.flush();
         } catch (DataIntegrityViolationException exception) {
             /*
              * Phòng trường hợp hai request đồng thời cùng tạo một code.
@@ -89,6 +110,13 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
             throw exception;
         }
+
+        return newOptions.stream()
+                .sorted(Comparator
+                        .comparingInt(AttributeOption::getDisplayOrder)
+                        .thenComparing(AttributeOption::getId))
+                .map(attributeOptionMapper::toAdminResponse)
+                .toList();
     }
 
     @Override

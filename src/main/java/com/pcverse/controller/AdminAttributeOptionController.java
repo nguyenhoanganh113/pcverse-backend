@@ -1,7 +1,7 @@
 package com.pcverse.controller;
 
-import com.pcverse.dto.request.AttributeOptionCreateRequest;
 import com.pcverse.dto.request.AttributeOptionSearchRequest;
+import com.pcverse.dto.request.BulkCreateAttributeOptionsRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionRequest;
 import com.pcverse.dto.request.UpdateAttributeOptionStatusRequest;
 import com.pcverse.dto.response.ApiResponse;
@@ -18,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/admin/attributes/{attributeDefinitionId}/options")
 @RequiredArgsConstructor
@@ -29,17 +31,17 @@ public class AdminAttributeOptionController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_CREATE')")
-    public ApiResponse<AdminAttributeOptionResponse> create(
+    public ApiResponse<List<AdminAttributeOptionResponse>> createBulk(
             @PathVariable String attributeDefinitionId,
-            @Valid @RequestBody AttributeOptionCreateRequest request
+            @Valid @RequestBody BulkCreateAttributeOptionsRequest request
     ) {
-        AdminAttributeOptionResponse response =
-                attributeOptionService.create(attributeDefinitionId, request);
-
-        return ApiResponse.<AdminAttributeOptionResponse>builder()
+        return ApiResponse.<List<AdminAttributeOptionResponse>>builder()
                 .code(HttpStatus.CREATED.value())
-                .message("Attribute option created successfully")
-                .data(response)
+                .message("Attribute options created successfully")
+                .data(attributeOptionService.createBulk(
+                        attributeDefinitionId,
+                        request
+                ))
                 .build();
     }
 
