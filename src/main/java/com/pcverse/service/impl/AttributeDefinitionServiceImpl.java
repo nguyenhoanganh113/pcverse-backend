@@ -179,11 +179,7 @@ public class AttributeDefinitionServiceImpl implements AttributeDefinitionServic
             UpdateAttributeDefinitionStatusRequest request
     ) {
 
-        AttributeDefinition attributeDefinition = attributeDefinitionRepository
-                .findByIdForUpdate(attributeDefinitionId)
-                .orElseThrow(() -> new AppException(
-                        ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND
-                ));
+        AttributeDefinition attributeDefinition = findAttributeDefinition(attributeDefinitionId);
 
         validateVersion(attributeDefinition, request.version());
 

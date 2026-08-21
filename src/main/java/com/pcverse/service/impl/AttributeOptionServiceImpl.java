@@ -238,22 +238,18 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             String attributeOptionId,
             UpdateAttributeOptionStatusRequest request) {
 
-        // Luôn khóa theo thứ tự AttributeDefinition -> AttributeOption để
-        // đồng bộ với luồng activate Product và tránh deadlock.
-        AttributeDefinition attributeDefinition = attributeDefinitionRepository
-                .findByIdForUpdate(attributeDefinitionId)
-                .orElseThrow(() -> new AppException(
-                        ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND
-                ));
-
         AttributeOption attributeOption = attributeOptionRepository
-                .findByIdAndAttributeDefinitionIdForUpdate(
+                .findByIdAndAttributeDefinitionId(
                         attributeOptionId,
                         attributeDefinitionId
                 )
-                .orElseThrow(() -> new AppException(
-                        ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND
-                ));
+                .orElseGet(() -> {
+                    if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
+                        throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
+                    }
+
+                    throw new AppException(ErrorCode.ATTRIBUTE_OPTION_NOT_FOUND);
+                });
 
         validateVersion(attributeOption, request.version());
 
@@ -274,7 +270,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             if (inUseByActiveProduct) {
                 throw new AppException(ErrorCode.ATTRIBUTE_OPTION_IN_USE);
             }
-        } else if (!attributeDefinition.isActive()) {
+        } else if (!attributeOption.getAttributeDefinition().isActive()) {
             // Chỉ được activate AttributeOption khi AttributeDefinition vẫn active.
             throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
         }

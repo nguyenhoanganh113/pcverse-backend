@@ -8,8 +8,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -66,15 +64,5 @@ public interface CategoryAttributeRepository extends
     );
 
     boolean existsByAttributeDefinition_IdAndCategory_ActiveTrue(String attributeDefinitionId);
-
-    @Query("""
-            select categoryAttribute.attributeDefinition.id
-            from CategoryAttribute categoryAttribute
-            where categoryAttribute.category.id = :categoryId
-            order by categoryAttribute.attributeDefinition.id
-            """)
-    List<String> findAttributeDefinitionIdsByCategoryId(
-            @Param("categoryId") String categoryId
-    );
 
 }
