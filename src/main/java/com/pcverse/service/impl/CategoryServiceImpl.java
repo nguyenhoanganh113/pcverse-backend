@@ -7,7 +7,6 @@ import com.pcverse.dto.request.UpdateCategoryStatusRequest;
 import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.entity.Category;
-import com.pcverse.enums.ProductStatus;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
 import com.pcverse.mapper.CategoryMapper;
