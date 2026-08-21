@@ -1,6 +1,6 @@
 package com.pcverse.controller;
 
-import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.BulkCreateCategoryAttributesRequest;
 import com.pcverse.dto.request.CategoryAttributeSearchRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.ApiResponse;
@@ -17,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/admin/categories/{categoryId}/attributes")
 @RequiredArgsConstructor
@@ -28,20 +30,15 @@ public class AdminCategoryAttributeController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_ATTRIBUTE_CREATE')")
-    public ApiResponse<AdminCategoryAttributeResponse> create(
+    public ApiResponse<List<AdminCategoryAttributeResponse>> createBulk(
             @PathVariable String categoryId,
-            @Valid @RequestBody
-            CreateCategoryAttributeRequest request
+            @Valid @RequestBody BulkCreateCategoryAttributesRequest request
     ) {
-        AdminCategoryAttributeResponse response = categoryAttributeService.create(categoryId, request);
-
         return ApiResponse
-                .<AdminCategoryAttributeResponse>builder()
+                .<List<AdminCategoryAttributeResponse>>builder()
                 .code(HttpStatus.CREATED.value())
-                .message(
-                        "Category attribute created successfully"
-                )
-                .data(response)
+                .message("Category attributes created successfully")
+                .data(categoryAttributeService.createBulk(categoryId, request))
                 .build();
     }
 

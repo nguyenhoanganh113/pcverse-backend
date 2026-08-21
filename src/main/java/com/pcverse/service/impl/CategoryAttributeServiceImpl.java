@@ -1,7 +1,8 @@
 package com.pcverse.service.impl;
 
-import com.pcverse.dto.request.CreateCategoryAttributeRequest;
+import com.pcverse.dto.request.BulkCreateCategoryAttributesRequest;
 import com.pcverse.dto.request.CategoryAttributeSearchRequest;
+import com.pcverse.dto.request.CreateCategoryAttributeRequest;
 import com.pcverse.dto.request.UpdateCategoryAttributeRequest;
 import com.pcverse.dto.response.AdminCategoryAttributeResponse;
 import com.pcverse.dto.response.PaginationResponse;
@@ -27,7 +28,15 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -38,58 +47,6 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
     private final AttributeDefinitionRepository attributeDefinitionRepository;
     private final ProductAttributeValueRepository productAttributeValueRepository;
     private final CategoryAttributeMapper categoryAttributeMapper;
-
-    @Override
-    @Transactional
-    public AdminCategoryAttributeResponse create(String categoryId, CreateCategoryAttributeRequest request) {
-
-        Category category = categoryRepository
-                .findById(categoryId)
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
-
-        AttributeDefinition attributeDefinition = attributeDefinitionRepository
-                .findById(request.attributeDefinitionId())
-                .orElseThrow(() -> new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND));
-        if (!attributeDefinition.isActive()) {
-            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
-        }
-
-        boolean existed = categoryAttributeRepository
-                .existsByCategory_IdAndAttributeDefinition_Id(categoryId, request.attributeDefinitionId());
-
-        if (existed) {
-            throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS);
-        }
-
-        CategoryAttribute categoryAttribute = CategoryAttribute.builder()
-                .category(category)
-                .attributeDefinition(attributeDefinition)
-                .required(request.required())
-                .filterable(request.filterable())
-                .highlighted(request.highlighted())
-                .displayOrder(request.displayOrder())
-                .build();
-
-        CategoryAttribute saved;
-
-        try {
-            saved = categoryAttributeRepository.saveAndFlush(categoryAttribute);
-
-        } catch (DataIntegrityViolationException exception) {
-            if (ConstraintUtils.hasConstraint(
-                    exception,
-                    "uk_category_attribute"
-            )) {
-                throw new AppException(
-                        ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS
-                );
-            }
-
-            throw exception;
-        }
-
-        return categoryAttributeMapper.toAdminResponse(saved);
-    }
 
     @Override
     @Transactional(readOnly = true)
@@ -195,6 +152,61 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
 
     @Override
     @Transactional
+    public List<AdminCategoryAttributeResponse> createBulk(
+            String categoryId,
+            BulkCreateCategoryAttributesRequest request
+    ) {
+        Category category = categoryRepository
+                .findById(categoryId)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        Map<String, CreateCategoryAttributeRequest> requestedByDefinitionId =
+                indexRequestedAttributes(request.attributes());
+        Map<String, AttributeDefinition> definitionsById =
+                loadAndValidateDefinitions(requestedByDefinitionId.keySet());
+
+        boolean alreadyExists = categoryAttributeRepository
+                .existsByCategory_IdAndAttributeDefinition_IdIn(
+                        categoryId,
+                        requestedByDefinitionId.keySet()
+                );
+        if (alreadyExists) {
+            throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS);
+        }
+
+        List<CategoryAttribute> newAttributes = new ArrayList<>();
+        requestedByDefinitionId.forEach((definitionId, item) -> {
+            newAttributes.add(CategoryAttribute.builder()
+                    .category(category)
+                    .attributeDefinition(definitionsById.get(definitionId))
+                    .required(item.required())
+                    .filterable(item.filterable())
+                    .highlighted(item.highlighted())
+                    .displayOrder(item.displayOrder())
+                    .build());
+        });
+
+        try {
+            categoryAttributeRepository.saveAll(newAttributes);
+            categoryAttributeRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            if (ConstraintUtils.hasConstraint(exception, "uk_category_attribute")) {
+                throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_ALREADY_EXISTS);
+            }
+
+            throw exception;
+        }
+
+        return newAttributes.stream()
+                .sorted(Comparator
+                        .comparingInt(CategoryAttribute::getDisplayOrder)
+                        .thenComparing(CategoryAttribute::getId))
+                .map(categoryAttributeMapper::toAdminResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public void delete(
             String categoryId,
             String categoryAttributeId,
@@ -239,6 +251,49 @@ public class CategoryAttributeServiceImpl implements CategoryAttributeService {
                     ErrorCode.CATEGORY_ATTRIBUTE_IN_USE
             );
         }
+    }
+
+    private Map<String, CreateCategoryAttributeRequest> indexRequestedAttributes(
+            List<CreateCategoryAttributeRequest> requestedAttributes
+    ) {
+        Map<String, CreateCategoryAttributeRequest> indexed = new HashMap<>();
+
+        for (CreateCategoryAttributeRequest item : requestedAttributes) {
+            if (indexed.putIfAbsent(item.attributeDefinitionId(), item) != null) {
+                throw new AppException(ErrorCode.CATEGORY_ATTRIBUTE_DUPLICATE);
+            }
+        }
+
+        return indexed;
+    }
+
+    private Map<String, AttributeDefinition> loadAndValidateDefinitions(
+            Set<String> requestedDefinitionIds
+    ) {
+        if (requestedDefinitionIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, AttributeDefinition> definitionsById =
+                attributeDefinitionRepository.findAllById(requestedDefinitionIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                AttributeDefinition::getId,
+                                Function.identity()
+                        ));
+
+        if (definitionsById.size() != requestedDefinitionIds.size()) {
+            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
+        }
+
+        boolean containsInactiveDefinition = definitionsById.values()
+                .stream()
+                .anyMatch(definition -> !definition.isActive());
+        if (containsInactiveDefinition) {
+            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_INACTIVE);
+        }
+
+        return definitionsById;
     }
 
     private void validateUpdateRequest(
