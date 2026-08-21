@@ -2,9 +2,9 @@ package com.pcverse.controller;
 
 import com.pcverse.dto.request.AdminProductFilterRequest;
 import com.pcverse.dto.request.CreateProductRequest;
-import com.pcverse.dto.request.UpdateProductRequest;
-import com.pcverse.dto.request.UpdateProductAttributesRequest;
+import com.pcverse.dto.request.UpdateProductConfigurationRequest;
 import com.pcverse.dto.request.UpdateProductStatusRequest;
+import com.pcverse.dto.response.AdminProductConfigurationResponse;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.AdminProductResponse;
@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 @RequestMapping("/api/v1/admin/products")
@@ -71,6 +71,19 @@ public class AdminProductController {
                 .build();
     }
 
+    @PutMapping("/{productId}/configuration")
+    @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
+    public ApiResponse<AdminProductConfigurationResponse> updateConfiguration(
+            @PathVariable String productId,
+            @Valid @RequestBody UpdateProductConfigurationRequest request
+    ) {
+        return ApiResponse.<AdminProductConfigurationResponse>builder()
+                .code(HttpStatus.OK.value())
+                .message("Product configuration updated successfully")
+                .data(productService.updateConfiguration(productId, request))
+                .build();
+    }
+
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_VIEW')")
     public ApiResponse<PaginationResponse<AdminProductResponse>> search(
@@ -86,19 +99,6 @@ public class AdminProductController {
                 .build();
     }
 
-    @PatchMapping("/{productId}")
-    @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
-    public ApiResponse<AdminProductResponse> update(
-            @PathVariable String productId,
-            @Valid @RequestBody UpdateProductRequest request
-    ) {
-        return ApiResponse.<AdminProductResponse>builder()
-                .code(HttpStatus.OK.value())
-                .message("Product updated successfully")
-                .data(productService.update(productId, request))
-                .build();
-    }
-
     @PatchMapping("/{productId}/status")
     @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
     public ApiResponse<AdminProductResponse> updateStatus(
@@ -109,19 +109,6 @@ public class AdminProductController {
                 .code(HttpStatus.OK.value())
                 .message("Product status updated successfully")
                 .data(productService.updateStatus(productId, request))
-                .build();
-    }
-
-    @PutMapping("/{productId}/attributes")
-    @PreAuthorize("hasAuthority('ROLE_PRODUCT_UPDATE')")
-    public ApiResponse<AdminProductAttributesResponse> updateAttributes(
-            @PathVariable String productId,
-            @Valid @RequestBody UpdateProductAttributesRequest request
-    ) {
-        return ApiResponse.<AdminProductAttributesResponse>builder()
-                .code(HttpStatus.OK.value())
-                .message("Product attributes updated successfully")
-                .data(productService.updateAttributes(productId, request))
                 .build();
     }
 

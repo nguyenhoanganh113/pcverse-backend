@@ -1,15 +1,15 @@
 package com.pcverse.mapper;
 
 import com.pcverse.dto.request.CreateProductRequest;
-import com.pcverse.dto.request.UpdateProductRequest;
-import com.pcverse.dto.response.AdminProductResponse;
+import com.pcverse.dto.request.UpdateProductConfigurationRequest;
 import com.pcverse.dto.response.AdminProductAttributesResponse;
+import com.pcverse.dto.response.AdminProductConfigurationResponse;
+import com.pcverse.dto.response.AdminProductResponse;
 import com.pcverse.entity.Product;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
 @Mapper(
@@ -48,17 +48,13 @@ public interface ProductMapper {
     )
     Product toEntity(CreateProductRequest request);
 
-    @BeanMapping(
-            ignoreByDefault = true,
-            nullValuePropertyMappingStrategy =
-                    NullValuePropertyMappingStrategy.IGNORE
-    )
+    @BeanMapping(ignoreByDefault = true)
     @Mapping(target = "description", source = "description")
     @Mapping(target = "price", source = "price")
     @Mapping(target = "stockQuantity", source = "stockQuantity")
     @Mapping(target = "allowBackorder", source = "allowBackorder")
-    void partialUpdate(
-            UpdateProductRequest request,
+    void updateConfiguration(
+            UpdateProductConfigurationRequest request,
             @MappingTarget Product product
     );
 
@@ -73,5 +69,11 @@ public interface ProductMapper {
     @Mapping(target = "productId", source = "id")
     @Mapping(target = "productName", source = "name")
     AdminProductAttributesResponse toAdminAttributesResponse(Product product);
+
+    @Mapping(target = "product", source = ".")
+    @Mapping(target = "attributeValues", source = "attributeValues")
+    AdminProductConfigurationResponse toAdminConfigurationResponse(
+            Product product
+    );
 
 }

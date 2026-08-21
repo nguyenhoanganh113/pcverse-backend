@@ -40,10 +40,7 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
             "attributeValues.attributeDefinition",
             "attributeValues.attributeOption"
     })
-    @Query("select product from Product product where product.id = :productId")
-    Optional<Product> findByIdWithAttributeValues(
-            @Param("productId") String productId
-    );
+    Optional<Product> findWithAttributeValuesById(String productId);
 
     @Override
     @EntityGraph(attributePaths = {"category", "brand"})
@@ -60,4 +57,5 @@ public interface ProductRepository extends JpaRepository<Product, String>, JpaSp
             @Param("productId") String productId,
             @Param("expectedVersion") Long expectedVersion
     );
+
 }
