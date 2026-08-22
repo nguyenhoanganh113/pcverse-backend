@@ -16,6 +16,7 @@ public interface AttributeOptionMapper {
             target = "attributeDefinitionId",
             source = "attributeDefinition.id"
     )
+    @Mapping(target = "attributeDefinitionName", source = "attributeDefinition.name")
     AdminAttributeOptionResponse toAdminResponse(AttributeOption attributeOption);
 
     @BeanMapping(

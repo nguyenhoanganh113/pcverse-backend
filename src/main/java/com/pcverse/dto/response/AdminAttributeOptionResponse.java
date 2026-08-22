@@ -7,6 +7,7 @@ public record AdminAttributeOptionResponse(
 
         String id,
         String attributeDefinitionId,
+        String attributeDefinitionName,
         String code,
         String label,
         int displayOrder,
