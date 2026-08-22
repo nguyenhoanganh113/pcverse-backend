@@ -3,7 +3,6 @@ package com.pcverse.controller;
 import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.response.ApiResponse;
 import com.pcverse.dto.response.PaginationResponse;
-import com.pcverse.dto.response.ProductFiltersResponse;
 import com.pcverse.dto.response.PublicCategoryResponse;
 import com.pcverse.service.CategoryService;
 import com.pcverse.service.ProductCatalogService;
