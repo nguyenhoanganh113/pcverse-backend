@@ -10,7 +10,7 @@ import java.util.Locale;
         name = "attribute_options",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_attribute_option_code",
+                        name = "uk_attribute_options_definition_code",
                         columnNames = {
                                 "attribute_definition_id",
                                 "code"

@@ -139,9 +139,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
     public PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(String attributeDefinitionId, AttributeOptionSearchRequest request, Pageable pageable) {
 
         if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
-            throw new AppException(
-                    ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND
-            );
+            throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
         }
 
         Specification<AttributeOption> specification =
