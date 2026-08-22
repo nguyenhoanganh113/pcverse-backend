@@ -1,14 +1,18 @@
 package com.pcverse.controller;
 
+import com.pcverse.dto.request.CategorySearchRequest;
 import com.pcverse.dto.response.ApiResponse;
+import com.pcverse.dto.response.PaginationResponse;
 import com.pcverse.dto.response.ProductFiltersResponse;
+import com.pcverse.dto.response.PublicCategoryResponse;
+import com.pcverse.service.CategoryService;
 import com.pcverse.service.ProductCatalogService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/categories")
@@ -16,15 +20,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class CategoryCatalogController {
 
     private final ProductCatalogService productCatalogService;
+    private final CategoryService categoryService;
 
-    @GetMapping("/{categoryId}/filters")
-    public ApiResponse<ProductFiltersResponse> getProductFilters(
-            @PathVariable String categoryId
+    @GetMapping
+    public ApiResponse<PaginationResponse<PublicCategoryResponse>> search(
+            @Valid @ModelAttribute CategorySearchRequest request,
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        return ApiResponse.<ProductFiltersResponse>builder()
+        return ApiResponse.<PaginationResponse<PublicCategoryResponse>>builder()
                 .code(HttpStatus.OK.value())
-                .message("Product filters retrieved successfully")
-                .data(productCatalogService.getFilters(categoryId))
+                .message("Categories retrieved successfully")
+                .data(categoryService.searchForPublic(request, pageable))
                 .build();
     }
 }

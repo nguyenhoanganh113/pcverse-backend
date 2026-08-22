@@ -6,6 +6,7 @@ import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryStatusRequest;
 import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
+import com.pcverse.dto.response.PublicCategoryResponse;
 import com.pcverse.entity.Category;
 import com.pcverse.exception.AppException;
 import com.pcverse.exception.ErrorCode;
@@ -47,14 +48,19 @@ public class CategoryServiceImpl implements CategoryService {
            throw new AppException(ErrorCode.CATEGORY_NAME_INVALID);
        }
 
-       if (categoryRepository.existsByNameIgnoreCase(request.name())
-               || categoryRepository.existsBySlug(slug)) {
+       if (categoryRepository.existsByNameIgnoreCase(request.name()) || categoryRepository.existsBySlug(slug)) {
            throw new AppException(ErrorCode.CATEGORY_ALREADY_EXISTS);
        }
 
-       Category category = categoryMapper.toEntity(request);
+       Category category = categoryMapper.toCategory(request);
        category.setSlug(slug);
        category.setActive(false);
+       if (request.parentId() != null) {
+           Category parent = categoryRepository.findById(request.parentId())
+                   .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+
+           category.setParent(parent);
+       }
 
        try {
            categoryRepository.saveAndFlush(category);
@@ -74,10 +80,7 @@ public class CategoryServiceImpl implements CategoryService {
             CategorySearchRequest request,
             Pageable pageable
     ) {
-        Specification<Category> specification = Specification.allOf(
-                CategorySpecification.hasKeyword(request.keyword()),
-                CategorySpecification.hasActive(request.active())
-        );
+        Specification<Category> specification = CategorySpecification.hasKeyword(request.keyword());
 
         Page<AdminCategoryResponse> page = categoryRepository
                 .findAll(specification, pageable)
@@ -94,16 +97,34 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
+    public PaginationResponse<PublicCategoryResponse> searchForPublic(CategorySearchRequest request, Pageable pageable) {
+        Specification<Category> specification = Specification.allOf(
+                CategorySpecification.hasKeyword(request.keyword()),
+                CategorySpecification.hasActive(true)
+        );
+
+        Page<PublicCategoryResponse> page = categoryRepository
+                .findAll(specification, pageable)
+                .map(categoryMapper::toPublicResponse);
+
+        return PaginationResponse.<PublicCategoryResponse>builder()
+                .currentPage(page.getNumber())
+                .size(page.getSize())
+                .totalPages(page.getTotalPages())
+                .totalElements(page.getTotalElements())
+                .data(page.getContent())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public AdminCategoryResponse getById(String id) {
         return categoryMapper.toAdminResponse(findCategory(id));
     }
 
     @Override
     @Transactional
-    public AdminCategoryResponse update(
-            String id,
-            UpdateCategoryRequest request
-    ) {
+    public AdminCategoryResponse update(String id, UpdateCategoryRequest request) {
         if (!request.hasAnyField()) {
             throw new AppException(ErrorCode.NO_FIELDS_TO_UPDATE);
         }
@@ -123,16 +144,28 @@ public class CategoryServiceImpl implements CategoryService {
 
         categoryMapper.partialUpdate(request, category);
 
+        if (request.parentId() != null) {
+            String parentId = request.parentId();
+
+            if (parentId.equals(category.getId())) {
+                throw new AppException(ErrorCode.CATEGORY_PARENT_INVALID);
+            }
+
+            Category parent = categoryRepository.findById(request.parentId())
+                    .orElseThrow(() ->
+                            new AppException(ErrorCode.CATEGORY_NOT_FOUND)
+                    );
+
+            category.setParent(parent);
+        }
+
         flushUpdate();
         return categoryMapper.toAdminResponse(category);
     }
 
     @Override
     @Transactional
-    public AdminCategoryResponse updateStatus(
-            String id,
-            UpdateCategoryStatusRequest request
-    ) {
+    public AdminCategoryResponse updateStatus(String id, UpdateCategoryStatusRequest request) {
         Category category = findCategory(id);
         validateVersion(category, request.version());
 

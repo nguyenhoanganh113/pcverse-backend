@@ -13,6 +13,8 @@ public record UpdateCategoryRequest(
 
         String description,
 
+        String parentId,
+
         @Size(max = 500, message = "Image URL must not exceed 500 characters")
         String imageUrl,
 
@@ -22,12 +24,13 @@ public record UpdateCategoryRequest(
 ) {
     public UpdateCategoryRequest {
         name = strip(name);
+        parentId = stripToNull(parentId);
         description = stripToNull(description);
         imageUrl = stripToNull(imageUrl);
     }
 
     public boolean hasAnyField() {
-        return name != null || description != null || imageUrl != null;
+        return name != null || description != null || imageUrl != null || parentId != null;
     }
 
     private static String strip(String value) {

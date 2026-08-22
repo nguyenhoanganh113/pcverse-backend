@@ -13,6 +13,8 @@ public record AdminCategoryResponse(
         String imageUrl,
         boolean active,
         Long version,
+        String parentId,
+        String parentName,
         Instant createdAt,
         Instant updatedAt
 ) {

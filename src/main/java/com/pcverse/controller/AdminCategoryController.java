@@ -39,9 +39,7 @@ public class AdminCategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_CREATE')")
-    public ApiResponse<AdminCategoryResponse> create(
-            @Valid @RequestBody CreateCategoryRequest request
-    ) {
+    public ApiResponse<AdminCategoryResponse> create(@Valid @RequestBody CreateCategoryRequest request) {
         return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Category created successfully")
@@ -51,9 +49,7 @@ public class AdminCategoryController {
 
     @GetMapping("/{categoryId}")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_VIEW')")
-    public ApiResponse<AdminCategoryResponse> getById(
-            @PathVariable String categoryId
-    ) {
+    public ApiResponse<AdminCategoryResponse> getById(@PathVariable String categoryId) {
         return ApiResponse.<AdminCategoryResponse>builder()
                 .code(HttpStatus.OK.value())
                 .message("Category retrieved successfully")
@@ -63,7 +59,7 @@ public class AdminCategoryController {
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_CATEGORY_VIEW')")
-    public ApiResponse<PaginationResponse<AdminCategoryResponse>> search(
+    public ApiResponse<PaginationResponse<AdminCategoryResponse>> searchForAdmin(
             @Valid @ModelAttribute CategorySearchRequest request,
             @PageableDefault(
                     size = 20,

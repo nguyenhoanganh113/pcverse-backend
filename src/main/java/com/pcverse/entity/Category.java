@@ -16,13 +16,7 @@ import java.util.List;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_categories_slug",
                 columnNames = "slug"
-        ),
-        indexes = {
-                @Index(
-                        name = "idx_categories_active",
-                        columnList = "active"
-                )
-        }
+        )
 )
 @Getter
 @Setter
@@ -48,6 +42,14 @@ public class Category extends AbstractAuditingEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = false;
+
     @OneToMany(mappedBy = "category")
     @Builder.Default
     private List<CategoryAttribute> categoryAttributes = new ArrayList<>();
@@ -56,13 +58,13 @@ public class Category extends AbstractAuditingEntity {
     @Builder.Default
     private List<Product> products = new ArrayList<>();
 
-    @Version
-    @Column(nullable = false)
-    private Long version;
-
-    @Column(nullable = false)
+    @OneToMany(mappedBy = "parent")
     @Builder.Default
-    private boolean active = false;
+    private List<Category> children = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
 
     @Override
     public boolean equals(Object object) {

@@ -3,6 +3,7 @@ package com.pcverse.mapper;
 import com.pcverse.dto.request.CreateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.response.AdminCategoryResponse;
+import com.pcverse.dto.response.PublicCategoryResponse;
 import com.pcverse.entity.Category;
 import org.mapstruct.*;
 
@@ -13,7 +14,13 @@ import org.mapstruct.*;
 public interface CategoryMapper {
 
     @Mapping(target = "updatedAt", source = "lastModifiedAt")
+    @Mapping(target = "parentId", source = "parent.id")
+    @Mapping(target = "parentName", source = "parent.name")
     AdminCategoryResponse toAdminResponse(Category category);
+
+    @Mapping(target = "parentId", source = "parent.id")
+    @Mapping(target = "parentName", source = "parent.name")
+    PublicCategoryResponse toPublicResponse(Category category);
 
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "categoryAttributes", ignore = true)
@@ -21,7 +28,9 @@ public interface CategoryMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "active", ignore = true)
-    Category toEntity(CreateCategoryRequest request);
+    @Mapping(target = "children", ignore = true)
+    @Mapping(target = "parent", ignore = true)
+    Category toCategory(CreateCategoryRequest request);
 
     @BeanMapping(
             ignoreByDefault = true,

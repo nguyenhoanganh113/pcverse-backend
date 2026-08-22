@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record CreateCategoryRequest(
+
         @Size(max = 150, message = "Name must not exceed 150 characters")
         @NotBlank(message = "Name is required")
         String name,
@@ -11,12 +12,15 @@ public record CreateCategoryRequest(
         String description,
 
         @Size(max = 500, message = "Image URL must not exceed 500 characters")
-        String imageUrl
+        String imageUrl,
+
+        String parentId
 ) {
     public CreateCategoryRequest {
         name = strip(name);
         description = stripToNull(description);
         imageUrl = stripToNull(imageUrl);
+        parentId = stripToNull(parentId);
     }
 
     private static String strip(String value) {

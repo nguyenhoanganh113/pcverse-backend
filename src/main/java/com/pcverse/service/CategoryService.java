@@ -6,6 +6,7 @@ import com.pcverse.dto.request.UpdateCategoryRequest;
 import com.pcverse.dto.request.UpdateCategoryStatusRequest;
 import com.pcverse.dto.response.AdminCategoryResponse;
 import com.pcverse.dto.response.PaginationResponse;
+import com.pcverse.dto.response.PublicCategoryResponse;
 import org.springframework.data.domain.Pageable;
 
 public interface CategoryService {
@@ -13,6 +14,11 @@ public interface CategoryService {
     AdminCategoryResponse create(CreateCategoryRequest request);
 
     PaginationResponse<AdminCategoryResponse> searchForAdmin(
+            CategorySearchRequest request,
+            Pageable pageable
+    );
+
+    PaginationResponse<PublicCategoryResponse> searchForPublic(
             CategorySearchRequest request,
             Pageable pageable
     );

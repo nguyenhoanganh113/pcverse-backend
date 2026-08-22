@@ -31,8 +31,7 @@ public class CategorySpecification {
 
             return criteriaBuilder.or(
                     criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern, '\\'),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("slug")), pattern, '\\'),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), pattern, '\\')
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("slug")), pattern, '\\')
             );
 
         };

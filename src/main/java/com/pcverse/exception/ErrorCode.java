@@ -50,6 +50,7 @@ public enum ErrorCode {
     CATEGORY_INACTIVE(400, "Category is inactive", HttpStatus.BAD_REQUEST),
     CATEGORY_VERSION_REQUIRED(400, "Category version must not be null", HttpStatus.BAD_REQUEST),
     CATEGORY_IN_USE(409, "Category is in use", HttpStatus.CONFLICT),
+    CATEGORY_PARENT_INVALID(400, "Category parent invalid", HttpStatus.BAD_REQUEST),
     CATEGORY_DATA_INTEGRITY_VIOLATION(409, "Category data conflicts with existing data", HttpStatus.CONFLICT),
     INVALID_CATEGORY_DATA_TYPE(400, "Invalid category data type", HttpStatus.BAD_REQUEST),
     CATEGORY_SEARCH_FIELD_REQUIRED(400, "Category search field is required", HttpStatus.BAD_REQUEST),

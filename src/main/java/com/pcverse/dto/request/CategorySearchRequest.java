@@ -4,8 +4,7 @@ import jakarta.validation.constraints.Size;
 
 public record CategorySearchRequest(
         @Size(max = 150)
-        String keyword,
-        Boolean active
+        String keyword
 ) {
     public CategorySearchRequest {
         keyword = stripToNull(keyword);
