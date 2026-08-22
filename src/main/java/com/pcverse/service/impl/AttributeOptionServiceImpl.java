@@ -71,10 +71,13 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             }
         }
 
-        if (attributeOptionRepository.existsAnyByAttributeDefinitionIdAndCodes(
-                attributeDefinitionId,
-                requestedCodes
-        )) {
+        boolean codeExists =
+                attributeOptionRepository.existsByAttributeDefinition_IdAndCodeIn(
+                        attributeDefinitionId,
+                        requestedCodes
+                );
+
+        if (codeExists) {
             throw new AppException(ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS);
         }
 
@@ -101,7 +104,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
              */
             if (ConstraintUtils.hasConstraint(
                     exception,
-                    "uk_attribute_option_code"
+                    "uk_attribute_options_definition_code"
             )) {
                 throw new AppException(
                         ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS
@@ -123,7 +126,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
     @Transactional(readOnly = true)
     public AdminAttributeOptionResponse getById(String attributeDefinitionId, String attributeOptionId) {
         AttributeOption attributeOption = attributeOptionRepository
-                .findByIdAndAttributeDefinitionId(attributeOptionId, attributeDefinitionId)
+                .findByIdAndAttributeDefinition_Id(attributeOptionId, attributeDefinitionId)
                 .orElseGet(() -> {
                     if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
                         throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
@@ -136,7 +139,11 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(String attributeDefinitionId, AttributeOptionSearchRequest request, Pageable pageable) {
+    public PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(
+            String attributeDefinitionId,
+            AttributeOptionSearchRequest request,
+            Pageable pageable
+    ) {
 
         if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
             throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
@@ -144,7 +151,9 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
 
         Specification<AttributeOption> specification =
                 Specification.allOf(
-                        AttributeOptionSpecification.belongsToAttributeDefinition(attributeDefinitionId),
+                        AttributeOptionSpecification.belongsToAttributeDefinition(
+                                attributeDefinitionId
+                        ),
                         AttributeOptionSpecification.hasKeyword(request.keyword()),
                         AttributeOptionSpecification.hasActive(request.active())
                 );
@@ -168,7 +177,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
     public void delete(String attributeDefinitionId, String attributeOptionId, Long version) {
 
         AttributeOption attributeOption = attributeOptionRepository
-                .findByIdAndAttributeDefinitionId(attributeOptionId, attributeDefinitionId)
+                .findByIdAndAttributeDefinition_Id(attributeOptionId, attributeDefinitionId)
                 .orElseGet(() -> {
                     if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
                         throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
@@ -213,7 +222,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
         }
 
         AttributeOption attributeOption = attributeOptionRepository
-                .findByIdAndAttributeDefinitionId(attributeOptionId, attributeDefinitionId)
+                .findByIdAndAttributeDefinition_Id(attributeOptionId, attributeDefinitionId)
                 .orElseGet(() -> {
                     if (!attributeDefinitionRepository.existsById(attributeDefinitionId)) {
                         throw new AppException(ErrorCode.ATTRIBUTE_DEFINITION_NOT_FOUND);
@@ -247,7 +256,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
         } catch (DataIntegrityViolationException exception) {
             if (ConstraintUtils.hasConstraint(
                     exception,
-                    "uk_attribute_option_code"
+                    "uk_attribute_options_definition_code"
             )) {
                 throw new AppException(
                         ErrorCode.ATTRIBUTE_OPTION_ALREADY_EXISTS
@@ -265,7 +274,7 @@ public class AttributeOptionServiceImpl implements AttributeOptionService {
             UpdateAttributeOptionStatusRequest request) {
 
         AttributeOption attributeOption = attributeOptionRepository
-                .findByIdAndAttributeDefinitionId(
+                .findForUpdate(
                         attributeOptionId,
                         attributeDefinitionId
                 )

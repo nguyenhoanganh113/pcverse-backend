@@ -219,7 +219,7 @@ public class ProductServiceImpl implements ProductService {
             }
 
             AttributeOption option = attributeOptionRepository
-                    .findByIdAndAttributeDefinitionId(
+                    .findByIdAndAttributeDefinition_Id(
                             attributeRequest.attributeOptionId(),
                             definitionId
                     )

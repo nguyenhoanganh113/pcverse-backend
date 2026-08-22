@@ -19,9 +19,11 @@ public interface AttributeOptionService {
 
     AdminAttributeOptionResponse getById(String attributeDefinitionId, String attributeOptionId);
 
-    PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(String attributeDefinitionId,
-                                                                    AttributeOptionSearchRequest request,
-                                                                    Pageable pageable);
+    PaginationResponse<AdminAttributeOptionResponse> searchForAdmin(
+            String attributeDefinitionId,
+            AttributeOptionSearchRequest request,
+            Pageable pageable
+    );
 
     void delete(String attributeDefinitionId, String attributeOptionId, Long version);
 

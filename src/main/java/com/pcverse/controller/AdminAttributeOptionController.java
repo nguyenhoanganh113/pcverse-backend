@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/admin/attributes/{attributeDefinitionId}/options")
+@RequestMapping("/api/v1/admin/attribute-definitions/{definitionId}/options")
 @RequiredArgsConstructor
 @PreAuthorize("denyAll()")
 public class AdminAttributeOptionController {
@@ -32,14 +32,14 @@ public class AdminAttributeOptionController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_CREATE')")
     public ApiResponse<List<AdminAttributeOptionResponse>> createBulk(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @Valid @RequestBody BulkCreateAttributeOptionsRequest request
     ) {
         return ApiResponse.<List<AdminAttributeOptionResponse>>builder()
                 .code(HttpStatus.CREATED.value())
                 .message("Attribute options created successfully")
                 .data(attributeOptionService.createBulk(
-                        attributeDefinitionId,
+                        definitionId,
                         request
                 ))
                 .build();
@@ -48,10 +48,13 @@ public class AdminAttributeOptionController {
     @GetMapping("/{attributeOptionId}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_READ')")
     public ApiResponse<AdminAttributeOptionResponse> getById(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @PathVariable String attributeOptionId
     ) {
-        AdminAttributeOptionResponse response = attributeOptionService.getById(attributeDefinitionId, attributeOptionId);
+        AdminAttributeOptionResponse response = attributeOptionService.getById(
+                definitionId,
+                attributeOptionId
+        );
 
         return ApiResponse.<AdminAttributeOptionResponse>builder()
                 .code(HttpStatus.OK.value())
@@ -63,7 +66,7 @@ public class AdminAttributeOptionController {
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_READ')")
     public ApiResponse<PaginationResponse<AdminAttributeOptionResponse>> searchForAdmin(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @Valid @ModelAttribute AttributeOptionSearchRequest request,
             @PageableDefault(
                     size = 20,
@@ -72,28 +75,25 @@ public class AdminAttributeOptionController {
             )
             Pageable pageable
     ) {
-
         return ApiResponse.<PaginationResponse<AdminAttributeOptionResponse>>builder()
                 .code(HttpStatus.OK.value())
                 .message("Attribute options retrieved successfully")
-                .data(
-                        attributeOptionService.searchForAdmin(
-                                attributeDefinitionId,
-                                request,
-                                pageable
-                        )
-                )
+                .data(attributeOptionService.searchForAdmin(
+                        definitionId,
+                        request,
+                        pageable
+                ))
                 .build();
     }
 
     @DeleteMapping("/{attributeOptionId}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_DELETE')")
     public ApiResponse<Void> delete(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @PathVariable String attributeOptionId,
             @RequestParam @PositiveOrZero(message = "Version must be greater than or equal to 0") Long version
     ) {
-        attributeOptionService.delete(attributeDefinitionId, attributeOptionId, version);
+        attributeOptionService.delete(definitionId, attributeOptionId, version);
 
         return ApiResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
@@ -104,14 +104,14 @@ public class AdminAttributeOptionController {
     @PatchMapping("/{attributeOptionId}")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_UPDATE')")
     public ApiResponse<AdminAttributeOptionResponse> update(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @PathVariable String attributeOptionId,
             @Valid @RequestBody UpdateAttributeOptionRequest request
     ) {
 
         AdminAttributeOptionResponse response =
                 attributeOptionService.update(
-                        attributeDefinitionId,
+                        definitionId,
                         attributeOptionId,
                         request
                 );
@@ -127,14 +127,14 @@ public class AdminAttributeOptionController {
     @PatchMapping("/{attributeOptionId}/status")
     @PreAuthorize("hasAuthority('ROLE_ATTRIBUTE_OPTION_UPDATE')")
     public ApiResponse<AdminAttributeOptionResponse> updateStatus(
-            @PathVariable String attributeDefinitionId,
+            @PathVariable String definitionId,
             @PathVariable String attributeOptionId,
             @Valid @RequestBody UpdateAttributeOptionStatusRequest request
     ) {
 
         AdminAttributeOptionResponse response =
                 attributeOptionService.updateStatus(
-                        attributeDefinitionId,
+                        definitionId,
                         attributeOptionId,
                         request
                 );

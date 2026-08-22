@@ -13,7 +13,10 @@ public class AttributeOptionSpecification {
 
     public static Specification<AttributeOption> belongsToAttributeDefinition(String attributeDefinitionId) {
         return (root, query, criteriaBuilder) ->
-                criteriaBuilder.equal(root.get("attributeDefinition").get("id"), attributeDefinitionId);
+                criteriaBuilder.equal(
+                        root.get("attributeDefinition").get("id"),
+                        attributeDefinitionId
+                );
     }
 
     public static Specification<AttributeOption> hasKeyword(String keyword) {
