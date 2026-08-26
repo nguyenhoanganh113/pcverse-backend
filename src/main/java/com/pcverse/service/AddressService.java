@@ -6,6 +6,7 @@ import com.pcverse.dto.response.AddressResponse;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface AddressService {
 
@@ -15,9 +16,9 @@ public interface AddressService {
 
     AddressResponse updateMyAddress(
             Jwt jwt,
-            String addressId,
+            UUID addressId,
             UpdateAddressRequest request
     );
 
-    void deleteMyAddress(Jwt jwt, String addressId);
+    void deleteMyAddress(Jwt jwt, UUID addressId);
 }

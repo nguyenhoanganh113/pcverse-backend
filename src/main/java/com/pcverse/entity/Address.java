@@ -12,11 +12,6 @@ import lombok.*;
 @NoArgsConstructor
 public class Address extends AbstractAuditingEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @EqualsAndHashCode.Include
-    private String id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

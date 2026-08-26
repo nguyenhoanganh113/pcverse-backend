@@ -19,7 +19,6 @@ import java.util.Set;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UserMapper {
 
-    @Mapping(target = "id", ignore = true)
     @Mapping(target = "keycloakId", ignore = true)
     @Mapping(target = "userHasRoles", ignore = true)
     @Mapping(target = "addresses", ignore = true)

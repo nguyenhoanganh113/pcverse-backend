@@ -16,11 +16,6 @@ import java.util.Set;
 @Builder
 public class Role extends AbstractAuditingEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
-
     @Column(nullable = false, unique = true)
     private String roleName;
 

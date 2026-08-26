@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +77,7 @@ public class AddressServiceImpl implements AddressService {
     @Transactional
     public AddressResponse updateMyAddress(
             Jwt jwt,
-            String addressId,
+            UUID addressId,
             UpdateAddressRequest request
     ) {
         User user = resolveAndLockCurrentUser(jwt);
@@ -97,7 +98,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     @Transactional
-    public void deleteMyAddress(Jwt jwt, String addressId) {
+    public void deleteMyAddress(Jwt jwt, UUID addressId) {
         User user = resolveAndLockCurrentUser(jwt);
         Address address = findOwnedAddress(addressId, user.getId());
         List<Address> currentAddresses =
@@ -133,7 +134,7 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    private Address findOwnedAddress(String addressId, String userId) {
+    private Address findOwnedAddress(UUID addressId, UUID userId) {
         return addressRepository.findByIdAndUser_Id(addressId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
     }
