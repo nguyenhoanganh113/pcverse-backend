@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface AddressRepository extends JpaRepository<Address, String> {
@@ -22,7 +23,7 @@ public interface AddressRepository extends JpaRepository<Address, String> {
                 address.createdAt DESC,
                 address.id ASC
             """)
-    List<Address> findAllByUserId(@Param("userId") String userId);
+    List<Address> findAllByUserId(@Param("userId") UUID userId);
 
-    Optional<Address> findByIdAndUser_Id(String addressId, String userId);
+    Optional<Address> findByIdAndUser_Id(UUID addressId, UUID userId);
 }

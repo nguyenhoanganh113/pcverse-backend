@@ -43,10 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -242,12 +239,12 @@ public class UserServiceImpl implements UserService {
             return toPaginationResponse(userPage, List.of());
         }
 
-        List<String> userIds = userPage.getContent()
+        List<UUID> userIds = userPage.getContent()
                 .stream()
                 .map(User::getId)
                 .toList();
 
-        Map<String, User> usersWithRolesById =
+        Map<UUID, User> usersWithRolesById =
                 userRepository.findAllWithRolesByIdIn(userIds)
                         .stream()
                         .collect(Collectors.toMap(

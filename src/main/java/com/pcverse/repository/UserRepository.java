@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface UserRepository extends
@@ -25,7 +26,7 @@ public interface UserRepository extends
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT user FROM User user WHERE user.id = :userId")
-    Optional<User> findByIdForUpdate(@Param("userId") String userId);
+    Optional<User> findByIdForUpdate(@Param("userId") UUID userId);
 
     boolean existsByUsernameIgnoreCase(String username);
 
@@ -39,7 +40,7 @@ public interface UserRepository extends
             WHERE user.id IN :userIds
             """)
     List<User> findAllWithRolesByIdIn(
-            @Param("userIds") Collection<String> userIds
+            @Param("userIds") Collection<UUID> userIds
     );
 
     @EntityGraph(attributePaths = {

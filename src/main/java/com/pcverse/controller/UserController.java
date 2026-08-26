@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -116,7 +117,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('ROLE_ADDRESS_UPDATE_SELF')")
     ApiResponse<AddressResponse> updateMyAddress(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String addressId,
+            @PathVariable UUID addressId,
             @RequestBody @Valid UpdateAddressRequest request
     ) {
         AddressResponse data = addressService.updateMyAddress(
@@ -136,7 +137,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('ROLE_ADDRESS_DELETE_SELF')")
     ApiResponse<Void> deleteMyAddress(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable String addressId
+            @PathVariable UUID addressId
     ) {
         addressService.deleteMyAddress(jwt, addressId);
 

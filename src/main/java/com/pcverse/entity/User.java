@@ -20,11 +20,6 @@ import java.util.Set;
 @Builder
 public class User extends AbstractAuditingEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @EqualsAndHashCode.Include
-    private String id;
-
     @Column(name = "keycloak_id", unique = true, length = 36)
     private String keycloakId;
 
